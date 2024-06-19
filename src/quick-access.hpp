@@ -10,6 +10,18 @@
 #include <QToolBar>
 #include <vector>
 
+class QuickAccess;
+
+class QuickAccessList : public QListWidget {
+	Q_OBJECT
+
+public:
+	QuickAccessList(QWidget *parent);
+	void dropEvent(QDropEvent *event) override;
+private:
+	QuickAccess *_qa = nullptr;
+};
+
 class QuickAccessItem : public QFrame {
 	Q_OBJECT
 
@@ -18,6 +30,7 @@ public:
 	QuickAccessItem(QWidget *parent, QuickAccessItem* original);
 	~QuickAccessItem();
 	void Save(obs_data_t* saveObj);
+	const char* GetSourceName();
 private:
 	QLabel *_label = nullptr;
 	QLabel *_iconLabel = nullptr;
@@ -27,20 +40,23 @@ private:
 private slots:
 	void on_actionProperties_triggered();
 	void on_actionFilters_triggered();
+	void on_actionScenes_triggered();
 };
 
-class QuickAccess : public QWidget {
+class QuickAccess : public QListWidget {
 	Q_OBJECT
 
 public:
 	QuickAccess(QWidget *parent, QString name);
 	void AddSource(const char* sourceName);
+	void AddSourceAtIndex(const char* sourceName, int index);
 	void Load(obs_data_t *loadObj);
 	void Save(obs_data_t* saveObj);
 	void AddSourceMenuItem(obs_source_t* source);
+	void updateEnabled();
 
 private:
-	QListWidget *_sourceList;
+	QuickAccessList *_sourceList;
 	QToolBar *_actionsToolbar;
 	QAction *_actionAddSource = nullptr;
 	QAction *_actionRemoveSource = nullptr;

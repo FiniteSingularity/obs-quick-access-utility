@@ -6,7 +6,6 @@
 
 typedef const char *(*translateFunc)(const char *);
 
-
 class QuickAccessDock : public QWidget {
 	Q_OBJECT
 
@@ -14,7 +13,9 @@ public:
 	QuickAccessDock(QWidget *parent = nullptr);
 	void Load(obs_data_t *data);
 	void Save(obs_data_t *data);
-
+	QIcon GetIconFromType(const char* type) const;
+	QIcon GetSceneIcon() const;
+	QIcon GetGroupIcon() const;
 private:
 	QuickAccess *_widget;
 };

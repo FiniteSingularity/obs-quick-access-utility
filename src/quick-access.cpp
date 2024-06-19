@@ -2,6 +2,7 @@
 #include "quick-access-dock.hpp"
 #include <obs-module.h>
 #include <QToolBar>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QListWidget>
@@ -9,6 +10,20 @@
 
 #define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
+
+extern QuickAccessDock *dock;
+
+QuickAccessList::QuickAccessList(QWidget* parent)
+ : QListWidget(parent)
+{
+	_qa = dynamic_cast<QuickAccess *>(parent);
+}
+
+void QuickAccessList::dropEvent(QDropEvent* event)
+{
+	QListWidget::dropEvent(event);
+	_qa->updateEnabled();
+}
 
 QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessItem* original)
  : QFrame(parent)
@@ -23,9 +38,24 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, obs_source_t *source)
 {
 	_source = obs_source_get_weak_source(source);
 
+	const char *id = obs_source_get_id(source);
+
 	setAttribute(Qt::WA_TranslucentBackground);
 	setMouseTracking(true);
 	setStyleSheet("background: none");
+
+	QIcon icon;
+
+	if(strcmp(id, "scene") == 0)
+		icon = dock->GetSceneIcon();
+	else if (strcmp(id, "group") == 0)
+		icon = dock->GetGroupIcon();
+	else
+		icon = dock->GetIconFromType(id);
+	QPixmap pixmap = icon.pixmap(QSize(16, 16));
+	_iconLabel = new QLabel(this);
+	_iconLabel->setPixmap(pixmap);
+	_iconLabel->setStyleSheet("background: none");
 
 	_label = new QLabel(this);
 	_label->setText(obs_source_get_name(source));
@@ -33,19 +63,23 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, obs_source_t *source)
 	_label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	_label->setAttribute(Qt::WA_TranslucentBackground);
 
-	auto layout = new QHBoxLayout(this);
+	auto layout = new QHBoxLayout();
 	layout->setContentsMargins(0, 0, 0, 0);
+	layout->addWidget(_iconLabel);
+	layout->addSpacing(2);
 	layout->addWidget(_label);
 
 	_actionsToolbar = new QToolBar(this);
 	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
-	_actionsToolbar->setIconSize(QSize(20, 20));
+	_actionsToolbar->setIconSize(QSize(16, 16));
 	_actionsToolbar->setFixedHeight(22);
-	_actionsToolbar->setStyleSheet("QToolBar{spacing:0px}");
+	_actionsToolbar->setStyleSheet("QToolBar{spacing: 0px;}");
 	_actionsToolbar->setFloatable(false);
 	_actionsToolbar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-
-	if (!obs_source_is_scene(source)) {
+	_actionsToolbar->setStyleSheet(
+		"QToolButton {padding: 0px; margin-left: 2px; margin-right: 2px;}"
+	);
+	if (obs_source_configurable(source)) {
 		auto actionProperties = new QAction(this);
 		actionProperties->setObjectName(QStringLiteral("actionProperties"));
 		actionProperties->setProperty("themeID", "propertiesIconSmall");
@@ -54,7 +88,6 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, obs_source_t *source)
 			SLOT(on_actionProperties_triggered()));
 		_actionsToolbar->addAction(actionProperties);
 	}
-
 
 	auto actionFilters = new QAction(this);
 	actionFilters->setObjectName(QStringLiteral("actionFilters"));
@@ -65,6 +98,18 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, obs_source_t *source)
 		SLOT(on_actionFilters_triggered()));
 	_actionsToolbar->addAction(actionFilters);
 
+	auto actionScenes = new QAction(this);
+	actionScenes->setObjectName(QStringLiteral("actionScenes"));
+	actionScenes->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	QIcon sceneIcon;
+	sceneIcon = dock->GetSceneIcon();
+	actionScenes->setIcon(sceneIcon);
+	//actionScenes->setProperty("themeID", "sceneIcon");
+	actionScenes->setText(QT_UTF8(obs_module_text("Scenes")));
+	connect(actionScenes, SIGNAL(triggered()), this,
+		SLOT(on_actionScenes_triggered()));
+	_actionsToolbar->addAction(actionScenes);
+
 	// Themes need the QAction dynamic properties
 	for (QAction *x : _actionsToolbar->actions()) {
 		QWidget *temp = _actionsToolbar->widgetForAction(x);
@@ -73,8 +118,16 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, obs_source_t *source)
 			temp->setProperty(y, x->property(y));
 		}
 	}
-
 	layout->addWidget(_actionsToolbar);
+	setLayout(layout);
+}
+
+const char* QuickAccessItem::GetSourceName()
+{
+	obs_source_t *source = obs_weak_source_get_source(_source);
+	const char* name = obs_source_get_name(source);
+	obs_source_release(source);
+	return name;
 }
 
 QuickAccessItem::~QuickAccessItem()
@@ -118,15 +171,25 @@ void QuickAccessItem::on_actionFilters_triggered()
 	obs_source_release(source);
 }
 
+void QuickAccessItem::on_actionScenes_triggered()
+{
+	obs_source_t *source = obs_weak_source_get_source(_source);
+	if (!source) {
+		return;
+	}
+	//obs_frontend_open_source_filters(source);
+	obs_source_release(source);
+}
+
 QuickAccess::QuickAccess(QWidget *parent, QString name)
-  : QWidget(parent)
+  : QListWidget(parent)
 {
 	setObjectName(name);
 	auto layout = new QVBoxLayout(this);
 	layout->setSpacing(0);
 	layout->setContentsMargins(0, 0, 0, 0);
 
-	_sourceList = new QListWidget(this);
+	_sourceList = new QuickAccessList(this);
 	_sourceList->setObjectName(QStringLiteral("sources"));
 	QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	sizePolicy.setHorizontalStretch(0);
@@ -204,7 +267,6 @@ QuickAccess::QuickAccess(QWidget *parent, QString name)
 }
 
 void QuickAccess::Save(obs_data_t *saveObj) {
-	blog(LOG_INFO, "Saving Quick Access Dock");
 	obs_data_set_string(saveObj, "dock_name", "default");
 	obs_data_set_string(saveObj, "dock_type", "manual");
 	auto itemsArr = obs_data_array_create();
@@ -234,8 +296,18 @@ void QuickAccess::Load(obs_data_t *loadObj) {
 void QuickAccess::AddSource(const char* sourceName)
 {
 	obs_source_t *source = obs_get_source_by_name(sourceName);
-	auto item = new QListWidgetItem(_sourceList);
+	auto item = new QListWidgetItem();
 	_sourceList->addItem(item);
+	auto row = new QuickAccessItem(this, source);
+	_sourceList->setItemWidget(item, row);
+	obs_source_release(source);
+}
+
+void QuickAccess::AddSourceAtIndex(const char* sourceName, int index)
+{
+	obs_source_t *source = obs_get_source_by_name(sourceName);
+	auto item = new QListWidgetItem();
+	_sourceList->insertItem(index, item);
 	auto row = new QuickAccessItem(this, source);
 	_sourceList->setItemWidget(item, row);
 	obs_source_release(source);
@@ -257,7 +329,7 @@ QMenu* QuickAccess::CreateAddSourcePopupMenu()
 	_ClearMenuSources();
 	obs_enum_sources(AddSourceToWidget, this);
 	obs_enum_scenes(AddSourceToWidget, this);
-
+	
 	auto getActionAfter = [](QMenu *menu, const QString &name) {
 		QList<QAction *> actions = menu->actions();
 
@@ -272,19 +344,22 @@ QMenu* QuickAccess::CreateAddSourcePopupMenu()
 
 	auto addSource = [this, getActionAfter](QMenu *pop, obs_source_t *source) {
 		const char* name = obs_source_get_name(source);
+		const char* type = obs_source_get_unversioned_id(source);
 		QString qname = name;
 		QAction *popupItem = new QAction(qname, this);
 		connect(popupItem, &QAction::triggered,
 			[this, name]() { AddSource(name); });
 
-		//QIcon icon;
+		QIcon icon;
 
-		//if (strcmp(type, "scene") == 0)
-		//	icon = GetSceneIcon();
-		//else
-		//	icon = GetSourceIcon(type);
+		if (strcmp(type, "scene") == 0)
+			icon = dock->GetSceneIcon();
+		else if (strcmp(type, "group") == 0)
+			icon = dock->GetGroupIcon();
+		else
+			icon = dock->GetIconFromType(type);
 
-		//popupItem->setIcon(icon);
+		popupItem->setIcon(icon);
 
 		QAction *after = getActionAfter(pop, qname);
 		pop->insertAction(after, popupItem);
@@ -328,33 +403,43 @@ void QuickAccess::on_actionSourceUp_triggered()
 		return;
 	}
 	_sourceList->blockSignals(true);
+
 	QListWidgetItem* widgetItem = _sourceList->item(index);
 	QuickAccessItem* widget = dynamic_cast<QuickAccessItem*>(_sourceList->itemWidget(widgetItem));
-	QListWidgetItem* oldItem = _sourceList->takeItem(index);
-	auto item = new QListWidgetItem(_sourceList);
-	_sourceList->addItem(item);
-	QuickAccessItem* newWidget = new QuickAccessItem(this, widget);
-	_sourceList->setItemWidget(item, newWidget);
-	_sourceList->setCurrentRow(index-1);
-	//item->setSelected(true);
+	const char* sourceName = widget->GetSourceName();
+	QListWidgetItem* toDelete = _sourceList->takeItem(index);
+	AddSourceAtIndex(sourceName, index-1);
 	_sourceList->blockSignals(false);
-	delete oldItem;
-	delete widget;
+	_sourceList->setCurrentRow(index-1);
+	delete toDelete;
 }
 
 void QuickAccess::on_actionSourceDown_triggered()
 {
-	//int index = _sourceList->currentRow();
-	//QListWidgetItem *item = _sourceList->takeItem(index);
-	//_sourceList->insertItem(index, item);
+	int index = _sourceList->currentRow();
+	if (index == -1) {
+		return;
+	}
+	_sourceList->blockSignals(true);
+
+	QListWidgetItem* widgetItem = _sourceList->item(index);
+	QuickAccessItem* widget = dynamic_cast<QuickAccessItem*>(_sourceList->itemWidget(widgetItem));
+	const char* sourceName = widget->GetSourceName();
+	QListWidgetItem* toDelete = _sourceList->takeItem(index);
+	AddSourceAtIndex(sourceName, index+1);
+	_sourceList->blockSignals(false);
+	_sourceList->setCurrentRow(index+1);
+	delete toDelete;
 }
 
-void QuickAccess::on_sourceList_itemSelectionChanged()
+void QuickAccess::updateEnabled()
 {
 	bool itemActions = _sourceList->currentItem() != nullptr;
+	bool firstElement = itemActions && _sourceList->currentRow() == 0;
+	bool lastElement = itemActions && _sourceList->currentRow() == _sourceList->count() - 1;
 	_actionRemoveSource->setEnabled(itemActions);
-	_actionSourceUp->setEnabled(itemActions);
-	_actionSourceDown->setEnabled(itemActions);
+	_actionSourceUp->setEnabled(itemActions && !firstElement);
+	_actionSourceDown->setEnabled(itemActions && !lastElement);
 
 	// Refresh Toolbar Styling
 	for (auto x : _actionsToolbar->actions()) {
@@ -366,6 +451,11 @@ void QuickAccess::on_sourceList_itemSelectionChanged()
 		widget->style()->unpolish(widget);
 		widget->style()->polish(widget);
 	}
+}
+
+void QuickAccess::on_sourceList_itemSelectionChanged()
+{
+	updateEnabled();
 }
 
 bool AddSourceToWidget(void* data, obs_source_t* source) {
