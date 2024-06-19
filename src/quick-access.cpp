@@ -5,6 +5,8 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QListWidget>
+#include <QWidgetAction>
+#include <QLineEdit>
 #include <obs-frontend-api.h>
 
 #define QT_UTF8(str) QString::fromUtf8(str)
@@ -253,6 +255,14 @@ QMenu* QuickAccess::CreateAddSourcePopupMenu()
 {
 	size_t idx = 0;
 	QMenu *popup = new QMenu("Add", this);
+	auto wa = new QWidgetAction(popup);
+	auto t = new QLineEdit;
+	t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
+		foreach(auto action, popup->actions())
+			action->setVisible(action->text().isEmpty() || action->text().contains(text, Qt::CaseInsensitive));
+	});
+	wa->setDefaultWidget(t);
+	popup->addAction(wa);
 	// MenuSources *should* be empty, but just in case
 	_ClearMenuSources();
 	obs_enum_sources(AddSourceToWidget, this);
