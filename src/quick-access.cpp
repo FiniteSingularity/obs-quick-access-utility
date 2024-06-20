@@ -137,6 +137,7 @@ QuickAccessItem::~QuickAccessItem()
 	delete _label;
 	delete _iconLabel;
 	delete _actionsToolbar;
+	_clearSceneItems();
 	obs_weak_source_release(_source);
 }
 
@@ -173,14 +174,116 @@ void QuickAccessItem::on_actionFilters_triggered()
 	obs_source_release(source);
 }
 
+void QuickAccessItem::_getSceneItems() {
+	_clearSceneItems();
+	obs_enum_scenes(QuickAccessItem::GetSceneItemsFromScene, this);
+}
+
+bool QuickAccessItem::GetSceneItemsFromScene(void* data, obs_source_t* s) {
+	obs_scene_t *scene = obs_scene_from_source(s);
+	obs_scene_enum_items(scene, QuickAccessItem::AddSceneItems, data);
+	return true;
+}
+
+bool QuickAccessItem::AddSceneItems(obs_scene_t* scene, obs_sceneitem_t* sceneItem, void* data) {
+	auto qai = static_cast<QuickAccessItem*>(data);
+	auto source = obs_sceneitem_get_source(sceneItem);
+	if (obs_source_is_group(source)) {
+		obs_scene_t * group = obs_group_from_source(source);
+		obs_scene_enum_items(group, QuickAccessItem::AddSceneItems, data);
+	}
+	if (obs_weak_source_references_source(qai->_source, source)) {
+		obs_sceneitem_addref(sceneItem);
+		qai->_sceneItems.push_back(sceneItem);
+		const char* sceneName = obs_source_get_name(obs_scene_get_source(scene));
+		// blog(LOG_INFO, "Scene Found: %s", sceneName);
+	}
+	return true;
+}
+
+QMenu* QuickAccessItem::_CreateSceneMenu() {
+	QMenu *popup = new QMenu("SceneMenu", this);
+	auto wa = new QWidgetAction(popup);
+	auto t = new QLineEdit;
+	t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
+		foreach(auto action, popup->actions())
+			action->setVisible(action->text().isEmpty() || action->text().contains(text, Qt::CaseInsensitive));
+	});
+	wa->setDefaultWidget(t);
+	popup->addAction(wa);
+
+	auto getActionAfter = [](QMenu *menu, const QString &name) {
+		QList<QAction *> actions = menu->actions();
+
+		for (QAction *menuAction : actions) {
+			if (menuAction->text().compare(
+				    name, Qt::CaseInsensitive) >= 0)
+				return menuAction;
+		}
+
+		return (QAction *)nullptr;
+	};
+
+	auto addSource = [this, getActionAfter](QMenu *pop, obs_sceneitem_t *sceneItem) {
+		auto scene = obs_sceneitem_get_scene(sceneItem);
+		obs_source_t *sceneSource = obs_scene_get_source(scene);
+		const char* name = obs_source_get_name(sceneSource);
+		const char* type = obs_source_get_unversioned_id(sceneSource);
+		QString qname = name;
+
+		QWidgetAction *popupItem = new QWidgetAction(this);
+		QWidget *itemWidget = new QuickAccessSceneItem(this, sceneItem);
+		popupItem->setDefaultWidget(itemWidget);
+
+	/*	connect(popupItem, &QAction::triggered,
+			[this, name]() { AddSource(name); });*/
+
+		//QIcon icon;
+
+		//if (strcmp(type, "scene") == 0)
+		//	icon = dock->GetSceneIcon();
+		//else if (strcmp(type, "group") == 0)
+		//	icon = dock->GetGroupIcon();
+		//else
+		//	icon = dock->GetIconFromType(type);
+
+		//popupItem->setIcon(icon);
+
+		QAction *after = getActionAfter(pop, qname);
+		pop->insertAction(after, popupItem);
+		return true;
+	};
+	for (auto& src : _sceneItems) {
+		addSource(popup, src);
+	}
+
+	return popup;
+}
+
+void QuickAccessItem::_AddScenePopupMenu(const QPoint& pos)
+{
+	QScopedPointer<QMenu> popup(_CreateSceneMenu());
+	if (popup) {
+		popup->exec(pos);
+	}
+}
+
+
+void QuickAccessItem::_clearSceneItems() {
+	for (auto& sceneItem : _sceneItems) {
+		obs_sceneitem_release(sceneItem);
+	}
+	_sceneItems.clear();
+}
+
 void QuickAccessItem::on_actionScenes_triggered()
 {
 	obs_source_t *source = obs_weak_source_get_source(_source);
 	if (!source) {
 		return;
 	}
-	//obs_frontend_open_source_filters(source);
-	obs_source_release(source);
+	_getSceneItems();
+	_AddScenePopupMenu(QCursor::pos());
 }
 
 QuickAccess::QuickAccess(QWidget *parent, QString name)
@@ -466,6 +569,133 @@ void QuickAccess::updateEnabled()
 void QuickAccess::on_sourceList_itemSelectionChanged()
 {
 	updateEnabled();
+}
+
+QuickAccessSceneItem::QuickAccessSceneItem(QWidget* parent, obs_sceneitem_t* sceneItem)
+: QWidget(parent), _sceneItem(sceneItem)
+{
+	obs_sceneitem_addref(_sceneItem);
+	bool sourceVisible = obs_sceneitem_visible(_sceneItem);
+	auto scene = obs_sceneitem_get_scene(sceneItem);
+	obs_source_t *sceneSource = obs_scene_get_source(scene);
+	const char* name = obs_source_get_name(sceneSource);
+	const char* type = obs_source_get_unversioned_id(sceneSource);
+	QString qname = name;
+
+	setAttribute(Qt::WA_TranslucentBackground);
+	setMouseTracking(true);
+	setStyleSheet("background: none");
+
+	QIcon icon;
+
+	if(strcmp(type, "scene") == 0)
+		icon = dock->GetSceneIcon();
+	else if (strcmp(type, "group") == 0)
+		icon = dock->GetGroupIcon();
+	else
+		icon = dock->GetIconFromType(type);
+
+	QPixmap pixmap = icon.pixmap(QSize(16, 16));
+	_iconLabel = new QLabel(this);
+	_iconLabel->setPixmap(pixmap);
+	_iconLabel->setStyleSheet("background: none");
+
+	_layout = new QHBoxLayout();
+	//_layout->setContentsMargins(0, 0, 0, 0);
+	_label = new QLabel(this);
+	_label->setText(name);
+	_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	_label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	_label->setAttribute(Qt::WA_TranslucentBackground);
+
+	_actionsToolbar = new QToolBar(this);
+	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
+	_actionsToolbar->setIconSize(QSize(16, 16));
+	_actionsToolbar->setFixedHeight(22);
+	_actionsToolbar->setStyleSheet("QToolBar{spacing: 0px;}");
+	_actionsToolbar->setFloatable(false);
+	_actionsToolbar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+	_actionsToolbar->setStyleSheet(
+		"QToolButton {padding: 0px; margin-left: 2px; margin-right: 2px;}"
+	);
+
+	_vis = new QCheckBox();
+	_vis->setProperty("visibilityCheckBox", true);
+	_vis->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+	_vis->setChecked(sourceVisible);
+	_vis->setStyleSheet("background: none");
+	_vis->setAccessibleName("Source Visibility");
+	_vis->setAccessibleDescription("Source Visibility");
+
+	auto actionTransform = new QAction(this);
+	actionTransform->setObjectName(QStringLiteral("actionTransform"));
+	actionTransform->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	actionTransform->setProperty("themeID", "cogsIcon");
+	actionTransform->setText(QT_UTF8(obs_module_text("Transformation")));
+	connect(actionTransform, SIGNAL(triggered()), this,
+		SLOT(on_actionTransform_triggered()));
+	_actionsToolbar->addAction(actionTransform);
+
+	_layout->addWidget(_iconLabel);
+	_layout->setSpacing(10);
+	_layout->addWidget(_label);
+	_layout->addWidget(_vis);
+	_layout->addWidget(_actionsToolbar);
+	setLayout(_layout);
+	// Themes need the QAction dynamic properties
+	for (QAction *x : _actionsToolbar->actions()) {
+		QWidget *temp = _actionsToolbar->widgetForAction(x);
+
+		for (QByteArray &y : x->dynamicPropertyNames()) {
+			temp->setProperty(y, x->property(y));
+		}
+	}
+
+	auto setItemVisible = [this](bool val) {
+		//obs_scene_t *scene = obs_sceneitem_get_scene(_sceneItem);
+		//obs_source_t *scenesource = obs_scene_get_source(scene);
+		//int64_t id = obs_sceneitem_get_id(_sceneItem);
+		//const char *name = obs_source_get_name(scenesource);
+		//const char *uuid = obs_source_get_uuid(scenesource);
+		//obs_source_t *source = obs_sceneitem_get_source(_sceneItem);
+
+		//auto undo_redo = [](const std::string &uuid, int64_t id,
+		//		    bool val) {
+		//	auto s = obs_get_source_by_uuid(uuid.c_str());
+		//	obs_scene_t *sc = obs_group_or_scene_from_source(s);
+		//	obs_sceneitem_t *si =
+		//		obs_scene_find_sceneitem_by_id(sc, id);
+		//	if (si)
+		//		obs_sceneitem_set_visible(si, val);
+		//};
+
+		//QString str = QTStr(val ? "Undo.ShowSceneItem"
+		//			: "Undo.HideSceneItem");
+
+		//OBSBasic *main = OBSBasic::Get();
+		//main->undo_s.add_action(
+		//	str.arg(obs_source_get_name(source), name),
+		//	std::bind(undo_redo, std::placeholders::_1, id, !val),
+		//	std::bind(undo_redo, std::placeholders::_1, id, val),
+		//	uuid, uuid);
+
+		//QSignalBlocker sourcesSignalBlocker(this);
+		obs_sceneitem_set_visible(_sceneItem, val);
+	};
+	connect(_vis, &QAbstractButton::clicked, setItemVisible);
+}
+
+QuickAccessSceneItem::~QuickAccessSceneItem() {
+	obs_sceneitem_release(_sceneItem);
+}
+
+void QuickAccessSceneItem::on_actionTransform_triggered() {
+	obs_frontend_open_sceneitem_edit_transform(_sceneItem);
+}
+
+void QuickAccessSceneItem::mouseReleaseEvent(QMouseEvent* e) {
+	// This is to suppress mouse event propegating down
+	// to QMenu.
 }
 
 bool AddSourceToWidget(void* data, obs_source_t* source) {

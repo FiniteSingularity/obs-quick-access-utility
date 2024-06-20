@@ -4,13 +4,34 @@
 #include <QString>
 #include <QWidget>
 #include <QLabel>
+#include <QCheckBox>
 #include <QListWidget>
 #include <QMenu>
 #include <QPushButton>
 #include <QToolBar>
+#include <QHBoxLayout>
 #include <vector>
 
 class QuickAccess;
+
+class QuickAccessSceneItem : public QWidget {
+	Q_OBJECT
+
+public:
+	QuickAccessSceneItem(QWidget *parent, obs_sceneitem_t *sceneItem);
+	~QuickAccessSceneItem();
+	void mouseReleaseEvent (QMouseEvent *e) override;
+private:
+	obs_sceneitem_t *_sceneItem = nullptr;
+	QLabel *_iconLabel = nullptr;
+	QHBoxLayout *_layout = nullptr;
+	QLabel *_label = nullptr;
+	QToolBar *_actionsToolbar;
+	QCheckBox *_vis = nullptr;
+
+private slots:
+	void on_actionTransform_triggered();
+};
 
 class QuickAccessList : public QListWidget {
 	Q_OBJECT
@@ -31,12 +52,22 @@ public:
 	~QuickAccessItem();
 	void Save(obs_data_t* saveObj);
 	const char* GetSourceName();
+
+	static bool GetSceneItemsFromScene(void* data, obs_source_t* s);
+	static bool AddSceneItems(obs_scene_t* s, obs_sceneitem_t* si, void* data);
+
 private:
 	QLabel *_label = nullptr;
 	QLabel *_iconLabel = nullptr;
 	QToolBar *_actionsToolbar = nullptr;
 	QPushButton *_filters = nullptr;
 	obs_weak_source_t *_source = nullptr;
+	std::vector<obs_sceneitem_t *> _sceneItems;
+	void _getSceneItems();
+	void _clearSceneItems();
+	QMenu* _CreateSceneMenu();
+	void _AddScenePopupMenu(const QPoint& pos);
+
 private slots:
 	void on_actionProperties_triggered();
 	void on_actionFilters_triggered();
