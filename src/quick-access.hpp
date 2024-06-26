@@ -11,8 +11,10 @@
 #include <QToolBar>
 #include <QHBoxLayout>
 #include <vector>
+#include <set>
 
 class QuickAccess;
+class QuickAccessDock;
 
 class QuickAccessSceneItem : public QWidget {
 	Q_OBJECT
@@ -33,6 +35,7 @@ private slots:
 	void on_actionTransform_triggered();
 };
 
+
 class QuickAccessList : public QListWidget {
 	Q_OBJECT
 
@@ -43,11 +46,12 @@ private:
 	QuickAccess *_qa = nullptr;
 };
 
+
 class QuickAccessItem : public QFrame {
 	Q_OBJECT
 
 public:
-	QuickAccessItem(QWidget *parent, obs_source_t *source);
+	QuickAccessItem(QWidget *parent, QuickAccessDock* dock, obs_source_t *source);
 	QuickAccessItem(QWidget *parent, QuickAccessItem* original);
 	~QuickAccessItem();
 	void Save(obs_data_t* saveObj);
@@ -55,14 +59,25 @@ public:
 
 	static bool GetSceneItemsFromScene(void* data, obs_source_t* s);
 	static bool AddSceneItems(obs_scene_t* s, obs_sceneitem_t* si, void* data);
+	void SetButtonVisibility();
+	bool IsSource(obs_source_t* s);
+	bool IsNullSource();
+	void SwitchToScene();
 
 private:
+	QuickAccessDock* _dock;
 	QLabel *_label = nullptr;
 	QLabel *_iconLabel = nullptr;
+
 	QToolBar *_actionsToolbar = nullptr;
+	QAction *_actionProperties = nullptr;
+	QAction *_actionFilters = nullptr;
+	QAction *_actionScenes = nullptr;
+
 	QPushButton *_filters = nullptr;
 	obs_weak_source_t *_source = nullptr;
 	std::vector<obs_sceneitem_t *> _sceneItems;
+	bool _configurable;
 	void _getSceneItems();
 	void _clearSceneItems();
 	QMenu* _CreateSceneMenu();
@@ -78,25 +93,47 @@ class QuickAccess : public QListWidget {
 	Q_OBJECT
 
 public:
-	QuickAccess(QWidget *parent, QString name);
-	void AddSource(const char* sourceName);
+	QuickAccess(QWidget* parent, QuickAccessDock* dock, QString name);
+	~QuickAccess();
+	void AddSource(const char* sourceName, bool hidden=false);
 	void AddSourceAtIndex(const char* sourceName, int index);
-	void Load(obs_data_t *loadObj);
+	void Load(obs_data_t* loadObj);
+	void LoadAllSources();
 	void Save(obs_data_t* saveObj);
 	void AddSourceMenuItem(obs_source_t* source);
+	void SetItemsButtonVisibility();
 	void updateEnabled();
 
+	static bool AddSourceName(void* data, obs_source_t* source);
+
+	static void SceneChangeCallback(enum obs_frontend_event event, void* data);
+	static bool DynAddSceneItems(obs_scene_t* scene, obs_sceneitem_t* sceneItem, void* data);
+
+	static void ItemAddedToScene(void* data, calldata_t* params);
+	static void ItemRemovedFromScene(void* data, calldata_t* params);
+
+	void RemoveNullSources();
+
 private:
-	QuickAccessList *_sourceList;
-	QToolBar *_actionsToolbar;
-	QAction *_actionAddSource = nullptr;
-	QAction *_actionRemoveSource = nullptr;
-	QAction *_actionSourceUp = nullptr;
-	QAction *_actionSourceDown = nullptr;
+	QuickAccessDock* _dock;
+	QuickAccessList* _sourceList;
+	QLineEdit* _searchText;
+	QToolBar* _actionsToolbar;
+	QAction* _actionAddSource = nullptr;
+	QAction* _actionRemoveSource = nullptr;
+	QAction* _actionSourceUp = nullptr;
+	QAction* _actionSourceDown = nullptr;
 	QMenu* CreateAddSourcePopupMenu();
+	obs_weak_source_t* _current = nullptr;
+	signal_handler_t* source_signal_handler = nullptr;
 	void AddSourcePopupMenu(const QPoint& pos);
 	void _ClearMenuSources();
+	void _LoadDynamicScenes();
 	std::vector<obs_source_t *> _menuSources;
+	std::vector<std::string> _allSourceNames;
+	std::set<std::string> _dynamicScenes;
+	bool _active = true;
+	bool _switchingSC = false;
 
 private slots:
 	void on_actionAddSource_triggered();

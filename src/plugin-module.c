@@ -5,28 +5,26 @@
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("FiniteSingularity");
-OBS_MODULE_USE_DEFAULT_LOCALE("obs-quick-access-dock", "en-US")
+OBS_MODULE_USE_DEFAULT_LOCALE("obs-quick-access-utility", "en-US")
 
 typedef const char *(*translateFunc)(const char *);
 
-void InitializeQAD(obs_module_t *, translateFunc);
+void InitializeQAU(obs_module_t *, translateFunc);
+void ShutdownQAU();
 void LoadSourceItems();
 void frontend_save_load(obs_data_t* save_data, bool saving, void*);
 
 bool obs_module_load()
 {
 	obs_frontend_push_ui_translation(obs_module_get_string);
-	InitializeQAD(obs_current_module(), obs_module_text);
+	InitializeQAU(obs_current_module(), obs_module_text);
 	blog(LOG_INFO, "Loaded version %s", PROJECT_VERSION);
 	return true;
 }
 
-//void obs_module_post_load(void)
-//{
-//	LoadSourceItems();
-//}
-
-void obs_module_unload() {}
+void obs_module_unload() {
+	ShutdownQAU();
+}
 
 MODULE_EXPORT const char *obs_module_description(void)
 {

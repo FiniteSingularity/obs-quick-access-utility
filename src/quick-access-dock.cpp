@@ -5,126 +5,169 @@
 #include <QMainWindow>
 #include <QVBoxLayout>
 
-QuickAccessDock *dock = nullptr;
-
-QuickAccessDock::QuickAccessDock(QWidget *parent) : QWidget(parent)
+QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t* data): QWidget(parent)
 {
-	_widget = new QuickAccess(this, "quick_access_widget");
+	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+
+	_dockName = obs_data_get_string(data, "dock_name");
+	_dockType = obs_data_get_string(data, "dock_type");
+	_dockId = obs_data_get_string(data, "dock_id");
+	_showProperties = obs_data_get_bool(data, "show_properties");
+	_showFilters = obs_data_get_bool(data, "show_filters");
+	_showScenes = obs_data_get_bool(data, "show_scenes");
+	_clickableScenes = obs_data_get_bool(data, "clickable_scenes");
+
+	_widget = new QuickAccess(this, this, "quick_access_widget");
 	auto l = new QVBoxLayout;
 	l->setContentsMargins(0, 0, 0, 0);
 	l->addWidget(_widget);
 	setLayout(l);
+
+	_widget->Load(data);
+	if (!_dockWidget) {
+		_InitializeDockWidget();
+	}
+	const auto d = static_cast<QDockWidget*>(parentWidget());
+	if (obs_data_get_bool(data, "dock_hidden")) {
+		d->hide();
+	}
+	else {
+		d->show();
+	}
+
+	const auto floating = obs_data_get_bool(data, "dock_floating");
+	if (d->isFloating() != floating) {
+		d->setFloating(floating);
+	}
+
+	const auto area = static_cast<Qt::DockWidgetArea>(obs_data_get_int(data, "dock_area"));
+	if (area != mainWindow->dockWidgetArea(d)) {
+		mainWindow->addDockWidget(area, d);
+	}
+
+	const char* geometry = obs_data_get_string(data, "dock_geometry");
+	if (geometry && strlen(geometry)) {
+		d->restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
+	}
+
 }
 
-void QuickAccessDock::Load(obs_data_t *data)
+QuickAccessDock::~QuickAccessDock()
 {
-	auto docks = obs_data_get_array(data, "quick_access_docks");
-	if (!docks) {
-		docks = obs_data_array_create();
-		auto dockObj = obs_data_create();
-		auto dockItems = obs_data_array_create();
-		obs_data_set_string(dockObj, "dock_name", "default");
-		obs_data_set_string(dockObj, "dock_type", "manual");
-		obs_data_set_array(dockObj, "dock_sources", dockItems);
-		obs_data_array_push_back(docks, dockObj);
-		obs_data_release(dockObj);
-		obs_data_array_release(dockItems);
+	if (_dockWidget) {
+		delete _dockWidget;
 	}
-	auto dockObj = obs_data_array_item(docks, 0);
-	_widget->Load(dockObj);
-	obs_data_array_release(docks);
+}
+
+void QuickAccessDock::SetItemsButtonVisibility()
+{
+	if (_widget) {
+		_widget->SetItemsButtonVisibility();
+	}
+}
+
+void QuickAccessDock::Load(obs_data_t *data, bool created)
+{
+	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+
+	_dockName = obs_data_get_string(data, "dock_name");
+	_dockType = obs_data_get_string(data, "dock_type");
+	_dockId = obs_data_get_string(data, "dock_id");
+	_showProperties = obs_data_get_bool(data, "show_properties");
+	_showFilters = obs_data_get_bool(data, "show_filters");
+	_showScenes = obs_data_get_bool(data, "show_scenes");
+	_clickableScenes = obs_data_get_bool(data, "clickable_scenes");
+
+	_widget->Load(data);
+	if (!_dockWidget) {
+		_InitializeDockWidget();
+	}
+	const auto d = static_cast<QDockWidget*>(parentWidget());
+	if (obs_data_get_bool(data, "dock_hidden")) {
+		d->hide();
+	}
+	else {
+		d->show();
+	}
+
+	const auto area = static_cast<Qt::DockWidgetArea>(obs_data_get_int(data, "dock_area"));
+	if (area != mainWindow->dockWidgetArea(d)) {
+		mainWindow->addDockWidget(area, d);
+	}
+
+	const auto floating = obs_data_get_bool(data, "dock_floating");
+	if (d->isFloating() != floating) {
+		d->setFloating(floating);
+	}
+
+	const char* geometry = obs_data_get_string(data, "dock_geometry");
+	if (geometry && strlen(geometry)) {
+		d->restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
+	}
+}
+
+void QuickAccessDock::_InitializeDockWidget()
+{
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+	obs_frontend_add_dock_by_id(("quick-access-dock_"+this->_dockId).c_str(), this->_dockName.c_str(), this);
+#else
+	_dockWidget = new QDockWidget(static_cast<QMainWindow*>(obs_frontend_get_main_window()));
+	_dockWidget->setObjectName(("quick-access-dock_" + this->_dockId).c_str());
+	_dockWidget->setWindowTitle(this->_dockName.c_str());
+	_dockWidget->setWidget(this);
+	_dockWidget->setFeatures(DockWidgetClosable | DockWidgetMovable |
+		DockWidgetFloatable);
+	_dockWidget->setFloating(true);
+	_dockWidget->hide();
+	obs_frontend_add_dock(_dockWidget);
+#endif
+	_dockInjected = true;
 }
 
 void QuickAccessDock::Save(obs_data_t *data)
 {
-	auto docks = obs_data_array_create();
+	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	auto docks = obs_data_get_array(data, "docks");
 	auto dockData = obs_data_create();
+	obs_data_set_string(dockData, "dock_name", _dockName.c_str());
+	obs_data_set_string(dockData, "dock_type", _dockType.c_str());
+	obs_data_set_string(dockData, "dock_id", _dockId.c_str());
+	obs_data_set_bool(dockData, "show_properties", _showProperties);
+	obs_data_set_bool(dockData, "show_filters", _showFilters);
+	obs_data_set_bool(dockData, "show_scenes", _showScenes);
+	obs_data_set_bool(dockData, "clickable_scenes", _clickableScenes);
+	obs_data_set_bool(dockData, "dock_hidden", parentWidget()->isHidden());
+	obs_data_set_string(dockData, "dock_geometry", saveGeometry().toBase64().constData());
+	auto* p = dynamic_cast<QMainWindow*>(parent()->parent());
+	if (!p || p == mainWindow) {
+		obs_data_set_string(dockData, "window", "");
+	} else {
+		QString wt = p->windowTitle();
+		auto t = wt.toUtf8();
+		obs_data_set_string(dockData, "window", t.constData());
+	}
+	if (p) {
+		obs_data_set_int(dockData, "dock_area", p->dockWidgetArea((QDockWidget*)parentWidget()));
+	}
+	obs_data_set_bool(dockData, "dock_floating", ((QDockWidget*)parentWidget())->isFloating());
+
 	_widget->Save(dockData);
 	obs_data_array_push_back(docks, dockData);
 	obs_data_release(dockData);
-	obs_data_set_array(data, "quick_access_docks", docks);
 	obs_data_array_release(docks);
 }
 
-QIcon QuickAccessDock::GetIconFromType(const char* type) const
-{
-	const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
+void QuickAccessDock::SourceCreated(obs_source_t* source) {
+	if (_dockType == "Source Search") {
 
-	auto icon_type = obs_source_get_icon_type(type);
-
-	switch (icon_type) {
-	case OBS_ICON_TYPE_IMAGE:
-		return main_window->property("imageIcon").value<QIcon>();
-	case OBS_ICON_TYPE_COLOR:
-		return main_window->property("colorIcon").value<QIcon>();
-	case OBS_ICON_TYPE_SLIDESHOW:
-		return main_window->property("slideshowIcon").value<QIcon>();
-	case OBS_ICON_TYPE_AUDIO_INPUT:
-		return main_window->property("audioInputIcon").value<QIcon>();
-	case OBS_ICON_TYPE_AUDIO_OUTPUT:
-		return main_window->property("audioOutputIcon").value<QIcon>();
-	case OBS_ICON_TYPE_DESKTOP_CAPTURE:
-		return main_window->property("desktopCapIcon").value<QIcon>();
-	case OBS_ICON_TYPE_WINDOW_CAPTURE:
-		return main_window->property("windowCapIcon").value<QIcon>();
-	case OBS_ICON_TYPE_GAME_CAPTURE:
-		return main_window->property("gameCapIcon").value<QIcon>();
-	case OBS_ICON_TYPE_CAMERA:
-		return main_window->property("cameraIcon").value<QIcon>();
-	case OBS_ICON_TYPE_TEXT:
-		return main_window->property("textIcon").value<QIcon>();
-	case OBS_ICON_TYPE_MEDIA:
-		return main_window->property("mediaIcon").value<QIcon>();
-	case OBS_ICON_TYPE_BROWSER:
-		return main_window->property("browserIcon").value<QIcon>();
-	case OBS_ICON_TYPE_CUSTOM:
-		//TODO: Add ability for sources to define custom icons
-		return main_window->property("defaultIcon").value<QIcon>();
-	case OBS_ICON_TYPE_PROCESS_AUDIO_OUTPUT:
-		return main_window->property("audioProcessOutputIcon").value<QIcon>();
-	default:
-		return main_window->property("defaultIcon").value<QIcon>();
 	}
 }
 
-QIcon QuickAccessDock::GetSceneIcon() const
-{
-	const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
-	return main_window->property("sceneIcon").value<QIcon>();
-}
-
-QIcon QuickAccessDock::GetGroupIcon() const
-{
-	const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
-	return main_window->property("groupIcon").value<QIcon>();
-}
-
-extern "C" EXPORT void InitializeQAD(obs_module_t *module,
-					 translateFunc translate)
-{
-	const auto mainWindow = static_cast<QMainWindow *>(obs_frontend_get_main_window());
-	dock = new QuickAccessDock(mainWindow);
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
-	obs_frontend_add_dock_by_id("quick-access-dock", "Quick Access Dock", dock);
-#else
-	const auto d = new QDockWidget(static_cast<QMainWindow *>(obs_frontend_get_main_window()));
-	d->setObjectName("quick-access-dock");
-	d->setWindowTitle(obs_module_text("QuickAccessDock.dockTitle"));
-	d->setWidget(dock);
-	d->setFeatures(DockWidgetClosable | DockWidgetMovable |
-		       DockWidgetFloatable);
-	d->setFloating(true);
-	d->hide();
-	obs_frontend_add_dock(d);
-#endif
-	obs_frontend_add_save_callback(frontendSaveLoad, dock);
-}
-
-void frontendSaveLoad(obs_data_t* save_data, bool saving, void* data) {
-	auto quickAccessDock = static_cast<QuickAccessDock *>(data);
-	if (saving) {
-		quickAccessDock->Save(save_data);
-	} else {
-		quickAccessDock->Load(save_data);
+void QuickAccessDock::SourceDestroyed() {
+	// Dynamic sources are handled from scene item add/delete events
+	if (_dockType != "Dynamic" && !_switchingSC) {
+		if (_widget) {
+			_widget->RemoveNullSources();
+		}
 	}
 }

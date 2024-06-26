@@ -9,8 +9,8 @@ else()
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(obs-quick-access-dock VERSION 0.0.1)
-set(PROJECT_FULL_NAME "Quick Access Dock")
+project(obs-quick-access-utility VERSION 0.0.1)
+set(PROJECT_FULL_NAME "Quick Access Utility")
 
 # Set new UUIDs when you start to create a new plugin.
 set(MACOS_PACKAGE_UUID "0f0fa2d8-809c-462d-b600-24ab3788e4d0")
@@ -22,6 +22,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_D
 
 target_sources(${PROJECT_NAME} PRIVATE
 	src/plugin-module.c
+	src/quick-access-utility.cpp
+	src/quick-access-utility.hpp
 	src/quick-access-dock.cpp
 	src/quick-access-dock.hpp
 	src/quick-access.cpp
