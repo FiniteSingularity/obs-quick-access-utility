@@ -11,6 +11,7 @@
 #include <QWidgetAction>
 #include <QLineEdit>
 #include <obs-frontend-api.h>
+#include "version.h"
 
 #define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
@@ -33,6 +34,7 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessItem* original)
  : QFrame(parent), _dock(original->_dock), _configurable(false)
 {
 	obs_source_t *source = obs_weak_source_get_source(original->_source);
+	_source = obs_source_get_weak_source(source);
 	_source = obs_source_get_weak_source(source);
 	obs_source_release(source);
 }

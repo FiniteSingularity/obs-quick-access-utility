@@ -7,6 +7,8 @@
 #include <QAction>
 #include <QLineEdit>
 
+#include "version.h"
+
 #define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
 
@@ -252,28 +254,41 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	QIcon sceneIcon = qau->GetSceneIcon();
 	QPixmap scenePixmap = sceneIcon.pixmap(QSize(18, 18));
 
-	auto headerClickableScenes = new QPushButton();
-	headerClickableScenes->setProperty("themeID", "playIcon");
-	layout->addWidget(headerClickableScenes);
-	headerClickableScenes->setDisabled(true);
-	headerClickableScenes->setStyleSheet("padding: 0px; background: none");
-
 	auto headerProperties = new QPushButton();
 	headerProperties->setProperty("themeID", "propertiesIconSmall");
 	layout->addWidget(headerProperties);
 	headerProperties->setDisabled(true);
+	headerProperties->setAccessibleDescription("Show Properties Button?");
+	headerProperties->setAccessibleName("Show Properties Button");
+	headerProperties->setToolTip("Show Properties Button?");
 	headerProperties->setStyleSheet("padding: 0px; background: none");
 
 	auto headerFilters = new QPushButton();
 	headerFilters->setProperty("themeID", "filtersIcon");
 	layout->addWidget(headerFilters);
 	headerFilters->setDisabled(true);
+	headerFilters->setAccessibleDescription("Show Filters Button?");
+	headerFilters->setAccessibleName("Show Filters Button");
+	headerFilters->setToolTip("Show Filters Button?");
 	headerFilters->setStyleSheet("padding: 0px; background: none");
 
 	auto headerScenes = new QLabel();
 	headerScenes->setPixmap(scenePixmap);
+	headerScenes->setAccessibleDescription("Show Parent Scenes Button?");
+	headerScenes->setAccessibleName("Show Parent Scenes Button");
+	headerScenes->setToolTip("Show Parent Scenes Button?");
 	headerScenes->setStyleSheet("background: none");
 	layout->addWidget(headerScenes);
+
+	auto headerClickableScenes = new QPushButton();
+	headerClickableScenes->setProperty("themeID", "playIcon");
+	layout->addWidget(headerClickableScenes);
+	headerClickableScenes->setDisabled(true);
+	headerClickableScenes->setAccessibleDescription("Clickable Scenes?");
+	headerClickableScenes->setAccessibleName("Clickable Scenes");
+	headerClickableScenes->setToolTip("Clickable Scenes?");
+
+	headerClickableScenes->setStyleSheet("padding: 0px; background: none");
 	
 
 	_layout->addWidget(header);
@@ -291,7 +306,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	_dockList->setDragEnabled(false);
 
 	connect(_dockList, SIGNAL(itemSelectionChanged()), this,
-		SLOT(on_sourceList_itemSelectionChanged()));
+		SLOT(on_dockList_itemSelectionChanged()));
 
 	// Add docks to the list widget
 	LoadDockList();
@@ -322,12 +337,19 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	_actionRemoveDock->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	_actionRemoveDock->setProperty("themeID", "removeIconSmall");
 	_actionRemoveDock->setText(QT_UTF8(obs_module_text("Remove Dock")));
+	_actionRemoveDock->setEnabled(false);
 	connect(_actionRemoveDock, SIGNAL(triggered()), this,
 		SLOT(on_actionRemoveDock_triggered()));
 	_toolbar->addAction(_actionRemoveDock);
 
 	_layout->addWidget(_toolbar);
 	setLayout(_layout);
+}
+
+void QuickAccessUtilityDialog::on_dockList_itemSelectionChanged()
+{
+	bool activeItem = _dockList->currentItem() != nullptr;
+	_actionRemoveDock->setEnabled(activeItem);
 }
 
 void QuickAccessUtilityDialog::LoadDockList()
@@ -440,11 +462,10 @@ DockListItem::DockListItem(QuickAccessDock* dock, QWidget* parent)
 	connect(_scenes, &QAbstractButton::clicked, setScenesVisible);
 
 	_layout->addWidget(_label);
-
-	_layout->addWidget(_clickableScenes);
 	_layout->addWidget(_properties);
 	_layout->addWidget(_filters);
 	_layout->addWidget(_scenes);
+	_layout->addWidget(_clickableScenes);
 }
 
 CreateDockDialog::CreateDockDialog(QWidget* parent)
@@ -455,21 +476,46 @@ CreateDockDialog::CreateDockDialog(QWidget* parent)
 	setWindowTitle(QString("Add Quick Access Dock"));
 	setMinimumWidth(400);
 	setMinimumHeight(300);
+	int labelWidth = 120;
 	_layout = new QVBoxLayout();
 
 	// Form layout
 	_layout2 = new QVBoxLayout();
 
+	auto layoutName = new QHBoxLayout();
+
+	auto inputLabel = new QLabel(this);
+	inputLabel->setText("Dock Name:");
+	inputLabel->setFixedWidth(labelWidth);
+
 	_inputName = new QLineEdit(this);
 	_inputName->setPlaceholderText("Dock Name");
-	_layout2->addWidget(_inputName);
+	_inputName->connect(_inputName, &QLineEdit::textChanged, [this](const QString text) {
+		_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(text.length() > 0);
+	});
+
+	layoutName->addWidget(inputLabel);
+	layoutName->addWidget(_inputName);
+
+	_layout2->addItem(layoutName);
+
+	auto layoutType = new QHBoxLayout();
+
+	auto typeLabel = new QLabel(this);
+	typeLabel->setText("Dock Type:");
+	typeLabel->setFixedWidth(labelWidth);
 
 	_inputType = new QComboBox(this);
-	_inputType->setPlaceholderText("Dock Type");
 	_inputType->addItem("Manual");
 	_inputType->addItem("Dynamic");
 	_inputType->addItem("Source Search");
-	_layout2->addWidget(_inputType);
+	layoutType->addWidget(typeLabel);
+	layoutType->addWidget(_inputType);
+	_layout2->addItem(layoutType);
+
+	auto optionsLabel = new QLabel(this);
+	optionsLabel->setText("Dock Options:");
+	_layout2->addWidget(optionsLabel);
 
 	_showProperties = new QCheckBox(this);
 	_showProperties->setText("Show Properties?");
@@ -493,6 +539,8 @@ CreateDockDialog::CreateDockDialog(QWidget* parent)
 
 	_buttonBox = new QDialogButtonBox(this);
 	_buttonBox->setStandardButtons(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
+	_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
+
 	connect(_buttonBox, SIGNAL(accepted()), this, SLOT(on_create_dock()));
 	connect(_buttonBox, SIGNAL(rejected()), this, SLOT(on_cancel()));
 

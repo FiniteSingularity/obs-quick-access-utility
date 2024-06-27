@@ -18,7 +18,7 @@ set(MACOS_INSTALLER_UUID "3dbf3525-1690-4d0f-a48d-226d4742c0e5")
 
 add_library(${PROJECT_NAME} MODULE)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
+configure_file(src/version.h.in src/version.h)
 
 target_sources(${PROJECT_NAME} PRIVATE
 	src/plugin-module.c
@@ -28,7 +28,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/quick-access-dock.hpp
 	src/quick-access.cpp
 	src/quick-access.hpp
-	version.h)
+	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
 	find_package(libobs REQUIRED)

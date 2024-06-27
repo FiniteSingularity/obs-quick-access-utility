@@ -105,6 +105,7 @@ private:
 private slots:
 	void on_actionAddDock_triggered();
 	void on_actionRemoveDock_triggered();
+	void on_dockList_itemSelectionChanged();
 };
 
 class DockListItem : public QFrame {

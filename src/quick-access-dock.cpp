@@ -4,6 +4,7 @@
 #include <obs-frontend-api.h>
 #include <QMainWindow>
 #include <QVBoxLayout>
+#include "version.h"
 
 QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t* data): QWidget(parent)
 {
