@@ -4,8 +4,8 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCO
 
 project(${_name} VERSION ${_version})
 
-option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" OFF)
-option(ENABLE_QT "Use Qt functionality" OFF)
+option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
+option(ENABLE_QT "Use Qt functionality" ON)
 
 include(compilerconfig)
 include(defaults)
@@ -34,6 +34,14 @@ if(ENABLE_QT)
                AUTORCC ON)
 endif()
 
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.c)
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
+  src/plugin-module.c
+  src/quick-access-utility.cpp
+  src/quick-access-utility.hpp
+  src/quick-access-dock.cpp
+  src/quick-access-dock.hpp
+  src/quick-access.cpp
+  src/quick-access.hpp
+  src/version.h)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
