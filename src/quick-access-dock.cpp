@@ -4,6 +4,7 @@
 #include <obs-frontend-api.h>
 #include <QMainWindow>
 #include <QVBoxLayout>
+#include <QDockWidget>
 #include "version.h"
 
 QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t* data): QWidget(parent)
@@ -116,8 +117,8 @@ void QuickAccessDock::_InitializeDockWidget()
 	_dockWidget->setObjectName(("quick-access-dock_" + this->_dockId).c_str());
 	_dockWidget->setWindowTitle(this->_dockName.c_str());
 	_dockWidget->setWidget(this);
-	_dockWidget->setFeatures(DockWidgetClosable | DockWidgetMovable |
-		DockWidgetFloatable);
+	_dockWidget->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable |
+		QDockWidget::DockWidgetFloatable);
 	_dockWidget->setFloating(true);
 	_dockWidget->hide();
 	obs_frontend_add_dock(_dockWidget);
