@@ -12,5 +12,5 @@
 *.generated.*
 **/.Brewfile.lock.json
 
-version.h
+# version.h
 obs-quick-access-utility.rc
