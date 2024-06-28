@@ -1,7 +1,6 @@
 #include "quick-access-utility.hpp"
 #include "quick-access-dock.hpp"
 
-#include <obs-frontend-api.h>
 #include <util/platform.h>
 #include <QMainWindow>
 #include <QAction>
@@ -38,12 +37,15 @@ QuickAccessUtility::~QuickAccessUtility()
 void QuickAccessUtility::SourceCreated(void* data, calldata_t* params)
 {
 	blog(LOG_INFO, "Source Created!");
-	obs_source_t* source_ptr = static_cast<obs_source_t*>(calldata_ptr(params, "source"));
-
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(params);
+	//obs_source_t* source_ptr = static_cast<obs_source_t*>(calldata_ptr(params, "source"));
 }
 
 void QuickAccessUtility::SourceDestroyed(void* data, calldata_t* params)
 {
+	UNUSED_PARAMETER(data);
+	UNUSED_PARAMETER(params);
 	blog(LOG_INFO, "Source Destroyed!");
 	for (auto& dock : qau->_docks) {
 		if (dock) {
@@ -131,6 +133,7 @@ void QuickAccessUtility::RemoveDocks()
 
 void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event, void* data)
 {
+	UNUSED_PARAMETER(data);
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED || event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 		blog(LOG_INFO, "QAU::Scene Collection Changed/Finshed Loading");
 		signal_handler_connect_ref(obs_get_signal_handler(), "source_create", QuickAccessUtility::SourceCreated, qau);
@@ -595,6 +598,7 @@ void CreateDockDialog::on_cancel()
 extern "C" EXPORT void InitializeQAU(obs_module_t *module,
 					 translateFunc translate)
 {
+	UNUSED_PARAMETER(translate);
 	qau = new QuickAccessUtility(module);
 	QAction* action = (QAction*)obs_frontend_add_tools_menu_qaction("Quick Access Utility");
 	action->connect(action, &QAction::triggered, OpenQAUDialog);

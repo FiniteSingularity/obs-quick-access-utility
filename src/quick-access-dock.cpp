@@ -70,6 +70,7 @@ void QuickAccessDock::SetItemsButtonVisibility()
 
 void QuickAccessDock::Load(obs_data_t *data, bool created)
 {
+	UNUSED_PARAMETER(created);
 	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
 
 	_dockName = obs_data_get_string(data, "dock_name");
@@ -160,6 +161,7 @@ void QuickAccessDock::Save(obs_data_t *data)
 }
 
 void QuickAccessDock::SourceCreated(obs_source_t* source) {
+	UNUSED_PARAMETER(source);
 	if (_dockType == "Source Search") {
 
 	}

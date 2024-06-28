@@ -10,7 +10,6 @@
 #include <QListWidget>
 #include <QWidgetAction>
 #include <QLineEdit>
-#include <obs-frontend-api.h>
 #include "version.h"
 
 #define QT_UTF8(str) QString::fromUtf8(str)
@@ -217,8 +216,6 @@ bool QuickAccessItem::AddSceneItems(obs_scene_t* scene, obs_sceneitem_t* sceneIt
 	if (obs_weak_source_references_source(qai->_source, source)) {
 		obs_sceneitem_addref(sceneItem);
 		qai->_sceneItems.push_back(sceneItem);
-		const char* sceneName = obs_source_get_name(obs_scene_get_source(scene));
-		// blog(LOG_INFO, "Scene Found: %s", sceneName);
 	}
 	return true;
 }
@@ -268,7 +265,6 @@ QMenu* QuickAccessItem::_CreateSceneMenu() {
 		auto scene = obs_sceneitem_get_scene(sceneItem);
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		const char* name = obs_source_get_name(sceneSource);
-		const char* type = obs_source_get_unversioned_id(sceneSource);
 		QString qname = name;
 
 		QWidgetAction *popupItem = new QWidgetAction(this);
@@ -489,6 +485,7 @@ void QuickAccess::_LoadDynamicScenes()
 
 bool QuickAccess::DynAddSceneItems(obs_scene_t* scene, obs_sceneitem_t* sceneItem, void* data)
 {
+	UNUSED_PARAMETER(scene);
 	QuickAccess* qa = static_cast<QuickAccess*>(data);
 	obs_source_t* source = obs_sceneitem_get_source(sceneItem);
 	std::string sourceName = obs_source_get_name(source);
@@ -510,6 +507,7 @@ bool QuickAccess::DynAddSceneItems(obs_scene_t* scene, obs_sceneitem_t* sceneIte
 void QuickAccess::ItemAddedToScene(void* data, calldata_t* params)
 {
 	blog(LOG_INFO, "Item added to scene");
+	UNUSED_PARAMETER(params);
 	QuickAccess* qa = static_cast<QuickAccess*>(data);
 	qa->_LoadDynamicScenes();
 }
@@ -518,6 +516,7 @@ void QuickAccess::ItemRemovedFromScene(void* data, calldata_t* params)
 {
 	QuickAccess* qa = static_cast<QuickAccess*>(data);
 	blog(LOG_INFO, "Item removed from scene");
+	UNUSED_PARAMETER(params);
 	if (qa->_active) {
 		qa->_LoadDynamicScenes();
 	}
@@ -622,7 +621,6 @@ void QuickAccess::_ClearMenuSources() {
 
 QMenu* QuickAccess::CreateAddSourcePopupMenu()
 {
-	size_t idx = 0;
 	QMenu *popup = new QMenu("Add", this);
 	auto wa = new QWidgetAction(popup);
 	auto t = new QLineEdit;
@@ -696,7 +694,6 @@ void QuickAccess::on_actionAddSource_triggered()
 void QuickAccess::on_actionRemoveSource_triggered()
 {
 	auto item = _sourceList->currentItem();
-	auto index = _sourceList->row(item);
 	if (!item)
 		return;
 	_sourceList->removeItemWidget(item);
@@ -911,6 +908,7 @@ void QuickAccessSceneItem::on_actionTransform_triggered() {
 void QuickAccessSceneItem::mouseReleaseEvent(QMouseEvent* e) {
 	// This is to suppress mouse event propegating down
 	// to QMenu.
+	UNUSED_PARAMETER(e);
 }
 
 bool AddSourceToWidget(void* data, obs_source_t* source) {

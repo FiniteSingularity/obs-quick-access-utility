@@ -1,5 +1,7 @@
 #pragma once
 #include <obs-module.h>
+#include <obs-frontend-api.h>
+
 #include <QDockWidget>
 #include <QWidget>
 #include <QDialog>
