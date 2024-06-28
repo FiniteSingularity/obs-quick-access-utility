@@ -26,6 +26,8 @@ invoke_formatter() {
     log_error "Usage invoke_formatter [formatter_name]"
     exit 2
   }
+  echo "HERE I AM!"
+  echo ${1}
 
   case ${1} {
     clang)
@@ -181,7 +183,6 @@ Usage: %B${functrace[1]%:*}%b <option>
 
   set -- ${(@)args}
   set_loglevel ${verbosity}
-  echo ${FORMATTER_NAME}
   invoke_formatter ${FORMATTER_NAME}
 }
 
