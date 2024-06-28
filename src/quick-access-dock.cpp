@@ -7,17 +7,17 @@
 #include <QDockWidget>
 #include "version.h"
 
-QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t* data): QWidget(parent)
+QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t* obsData): QWidget(parent)
 {
 	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
 
-	_dockName = obs_data_get_string(data, "dock_name");
-	_dockType = obs_data_get_string(data, "dock_type");
-	_dockId = obs_data_get_string(data, "dock_id");
-	_showProperties = obs_data_get_bool(data, "show_properties");
-	_showFilters = obs_data_get_bool(data, "show_filters");
-	_showScenes = obs_data_get_bool(data, "show_scenes");
-	_clickableScenes = obs_data_get_bool(data, "clickable_scenes");
+	_dockName = obs_data_get_string(obsData, "dock_name");
+	_dockType = obs_data_get_string(obsData, "dock_type");
+	_dockId = obs_data_get_string(obsData, "dock_id");
+	_showProperties = obs_data_get_bool(obsData, "show_properties");
+	_showFilters = obs_data_get_bool(obsData, "show_filters");
+	_showScenes = obs_data_get_bool(obsData, "show_scenes");
+	_clickableScenes = obs_data_get_bool(obsData, "clickable_scenes");
 
 	_widget = new QuickAccess(this, this, "quick_access_widget");
 	auto l = new QVBoxLayout;
@@ -25,29 +25,29 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t* data): QWidget(par
 	l->addWidget(_widget);
 	setLayout(l);
 
-	_widget->Load(data);
+	_widget->Load(obsData);
 	if (!_dockWidget) {
 		_InitializeDockWidget();
 	}
 	const auto d = static_cast<QDockWidget*>(parentWidget());
-	if (obs_data_get_bool(data, "dock_hidden")) {
+	if (obs_data_get_bool(obsData, "dock_hidden")) {
 		d->hide();
 	}
 	else {
 		d->show();
 	}
 
-	const auto floating = obs_data_get_bool(data, "dock_floating");
+	const auto floating = obs_data_get_bool(obsData, "dock_floating");
 	if (d->isFloating() != floating) {
 		d->setFloating(floating);
 	}
 
-	const auto area = static_cast<Qt::DockWidgetArea>(obs_data_get_int(data, "dock_area"));
+	const auto area = static_cast<Qt::DockWidgetArea>(obs_data_get_int(obsData, "dock_area"));
 	if (area != mainWindow->dockWidgetArea(d)) {
 		mainWindow->addDockWidget(area, d);
 	}
 
-	const char* geometry = obs_data_get_string(data, "dock_geometry");
+	const char* geometry = obs_data_get_string(obsData, "dock_geometry");
 	if (geometry && strlen(geometry)) {
 		d->restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
 	}
@@ -68,42 +68,42 @@ void QuickAccessDock::SetItemsButtonVisibility()
 	}
 }
 
-void QuickAccessDock::Load(obs_data_t *data, bool created)
+void QuickAccessDock::Load(obs_data_t *obsData, bool created)
 {
 	UNUSED_PARAMETER(created);
 	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
 
-	_dockName = obs_data_get_string(data, "dock_name");
-	_dockType = obs_data_get_string(data, "dock_type");
-	_dockId = obs_data_get_string(data, "dock_id");
-	_showProperties = obs_data_get_bool(data, "show_properties");
-	_showFilters = obs_data_get_bool(data, "show_filters");
-	_showScenes = obs_data_get_bool(data, "show_scenes");
-	_clickableScenes = obs_data_get_bool(data, "clickable_scenes");
+	_dockName = obs_data_get_string(obsData, "dock_name");
+	_dockType = obs_data_get_string(obsData, "dock_type");
+	_dockId = obs_data_get_string(obsData, "dock_id");
+	_showProperties = obs_data_get_bool(obsData, "show_properties");
+	_showFilters = obs_data_get_bool(obsData, "show_filters");
+	_showScenes = obs_data_get_bool(obsData, "show_scenes");
+	_clickableScenes = obs_data_get_bool(obsData, "clickable_scenes");
 
-	_widget->Load(data);
+	_widget->Load(obsData);
 	if (!_dockWidget) {
 		_InitializeDockWidget();
 	}
 	const auto d = static_cast<QDockWidget*>(parentWidget());
-	if (obs_data_get_bool(data, "dock_hidden")) {
+	if (obs_data_get_bool(obsData, "dock_hidden")) {
 		d->hide();
 	}
 	else {
 		d->show();
 	}
 
-	const auto area = static_cast<Qt::DockWidgetArea>(obs_data_get_int(data, "dock_area"));
+	const auto area = static_cast<Qt::DockWidgetArea>(obs_data_get_int(obsData, "dock_area"));
 	if (area != mainWindow->dockWidgetArea(d)) {
 		mainWindow->addDockWidget(area, d);
 	}
 
-	const auto floating = obs_data_get_bool(data, "dock_floating");
+	const auto floating = obs_data_get_bool(obsData, "dock_floating");
 	if (d->isFloating() != floating) {
 		d->setFloating(floating);
 	}
 
-	const char* geometry = obs_data_get_string(data, "dock_geometry");
+	const char* geometry = obs_data_get_string(obsData, "dock_geometry");
 	if (geometry && strlen(geometry)) {
 		d->restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
 	}
@@ -127,10 +127,10 @@ void QuickAccessDock::_InitializeDockWidget()
 	_dockInjected = true;
 }
 
-void QuickAccessDock::Save(obs_data_t *data)
+void QuickAccessDock::Save(obs_data_t *obsData)
 {
 	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-	auto docks = obs_data_get_array(data, "docks");
+	auto docks = obs_data_get_array(obsData, "docks");
 	auto dockData = obs_data_create();
 	obs_data_set_string(dockData, "dock_name", _dockName.c_str());
 	obs_data_set_string(dockData, "dock_type", _dockType.c_str());

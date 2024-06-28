@@ -13,10 +13,10 @@ class QuickAccessDock : public QWidget {
 	Q_OBJECT
 
 public:
-	QuickAccessDock(QWidget* parent, obs_data_t* data);
+	QuickAccessDock(QWidget* parent, obs_data_t* obsData);
 	~QuickAccessDock();
-	void Load(obs_data_t *data, bool created = false);
-	void Save(obs_data_t *data);
+	void Load(obs_data_t *obsData, bool created = false);
+	void Save(obs_data_t *obsData);
 	inline std::string GetName() { return _dockName; }
 	inline std::string GetType() { return _dockType; }
 	inline std::string GetId() { return _dockId; }

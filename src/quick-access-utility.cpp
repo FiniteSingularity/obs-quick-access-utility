@@ -391,8 +391,8 @@ QuickAccessUtilityDialog::~QuickAccessUtilityDialog()
 
 void QuickAccessUtilityDialog::on_actionAddDock_triggered() {
 	const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-	CreateDockDialog* dialog = new CreateDockDialog(main_window);
-	dialog->show();
+	CreateDockDialog* dockDialog = new CreateDockDialog(main_window);
+	dockDialog->show();
 }
 
 void QuickAccessUtilityDialog::on_actionRemoveDock_triggered() {
@@ -577,14 +577,14 @@ CreateDockDialog::CreateDockDialog(QWidget* parent)
 void CreateDockDialog::on_create_dock()
 {
 	blog(LOG_INFO, "Create Dock");
-	CreateDockFormData data;
-	data.dockName = QT_TO_UTF8(_inputName->text());
-	data.dockType = QT_TO_UTF8(_inputType->currentText());
-	data.showProperties = _showProperties->isChecked();
-	data.showFilters = _showFilters->isChecked();
-	data.showScenes = _showScenes->isChecked();
-	data.clickableScenes = _clickThroughScenes->isChecked();
-	qau->CreateDock(data);
+	CreateDockFormData formData;
+	formData.dockName = QT_TO_UTF8(_inputName->text());
+	formData.dockType = QT_TO_UTF8(_inputType->currentText());
+	formData.showProperties = _showProperties->isChecked();
+	formData.showFilters = _showFilters->isChecked();
+	formData.showScenes = _showScenes->isChecked();
+	formData.clickableScenes = _clickThroughScenes->isChecked();
+	qau->CreateDock(formData);
 	done(DialogCode::Accepted);
 }
 

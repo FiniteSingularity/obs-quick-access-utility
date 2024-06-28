@@ -351,8 +351,8 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 			for (int i = 0; i < _sourceList->count(); i++) {
 				QListWidgetItem* item = _sourceList->item(i);
 				QuickAccessItem* widget = dynamic_cast<QuickAccessItem*>(_sourceList->itemWidget(item));
-				QString name = widget->GetSourceName();
-				item->setHidden(text.isEmpty() || !name.contains(text, Qt::CaseInsensitive));
+				QString wName = widget->GetSourceName();
+				item->setHidden(text.isEmpty() || !wName.contains(text, Qt::CaseInsensitive));
 			}
 		});
 		layout->addWidget(_searchText);
