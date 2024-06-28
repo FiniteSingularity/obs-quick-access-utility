@@ -1,5 +1,7 @@
 #pragma once
 #include <obs-module.h>
+#include <obs-frontend-api.h>
+
 #include <QDockWidget>
 #include <QWidget>
 #include <string>
@@ -11,10 +13,10 @@ class QuickAccessDock : public QWidget {
 	Q_OBJECT
 
 public:
-	QuickAccessDock(QWidget* parent, obs_data_t* data);
+	QuickAccessDock(QWidget *parent, obs_data_t *obsData);
 	~QuickAccessDock();
-	void Load(obs_data_t *data, bool created = false);
-	void Save(obs_data_t *data);
+	void Load(obs_data_t *obsData, bool created = false);
+	void Save(obs_data_t *obsData);
 	inline std::string GetName() { return _dockName; }
 	inline std::string GetType() { return _dockType; }
 	inline std::string GetId() { return _dockId; }
@@ -26,17 +28,18 @@ public:
 	inline void SetFilters(bool on) { _showFilters = on; }
 	inline void SetScenes(bool on) { _showScenes = on; }
 	inline void SetClickableScenes(bool on) { _clickableScenes = on; }
-	inline QDockWidget* GetDockWidget() { return _dockWidget; }
+	inline QDockWidget *GetDockWidget() { return _dockWidget; }
 	void SwitchingSceneCollections(bool state) { _switchingSC = state; }
 	void SetItemsButtonVisibility();
 
-	void SourceCreated(obs_source_t* source);
+	void SourceCreated(obs_source_t *source);
 	void SourceDestroyed();
+
 private:
 	void _InitializeDockWidget();
 
-	QDockWidget* _dockWidget = nullptr;
-	QuickAccess* _widget = nullptr;
+	QDockWidget *_dockWidget = nullptr;
+	QuickAccess *_widget = nullptr;
 	std::string _dockName;
 	std::string _dockType;
 	std::string _dockId;

@@ -6,4 +6,5 @@
 #define PROJECT_VERSION_MINOR 0
 #define PROJECT_VERSION_PATCH 1
 
-#define blog(level, msg, ...) blog(level, "[" PROJECT_NAME "] " msg, ##__VA_ARGS__)
+#define blog(level, msg, ...) \
+	blog(level, "[" PROJECT_NAME "] " msg, ##__VA_ARGS__)

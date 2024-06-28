@@ -12,7 +12,7 @@ typedef const char *(*translateFunc)(const char *);
 void InitializeQAU(obs_module_t *, translateFunc);
 void ShutdownQAU();
 void LoadSourceItems();
-void frontend_save_load(obs_data_t* save_data, bool saving, void*);
+void frontend_save_load(obs_data_t *save_data, bool saving, void *);
 
 bool obs_module_load()
 {
@@ -22,7 +22,8 @@ bool obs_module_load()
 	return true;
 }
 
-void obs_module_unload() {
+void obs_module_unload()
+{
 	ShutdownQAU();
 }
 
