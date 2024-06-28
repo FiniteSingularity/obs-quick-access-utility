@@ -26,8 +26,8 @@ invoke_formatter() {
     log_error "Usage invoke_formatter [formatter_name]"
     exit 2
   }
-  echo "HERE I AM!"
-  echo ${1}
+  log_error "Here I am!"
+  log_error "Formatter: ${1}"
 
   case ${1} {
     clang)
