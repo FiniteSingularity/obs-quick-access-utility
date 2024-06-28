@@ -54,7 +54,7 @@ runs:
           pip3 install cmakelang
           echo ::endgroup::
           echo ::group::Run cmake-format
-          ls -la .build-aux
+          ls -la ./build-aux
           ./build-aux/run-cmake-format --fail-${{ inputs.failCondition }} --check
           echo ::endgroup::
         }
