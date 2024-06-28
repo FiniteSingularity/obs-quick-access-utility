@@ -40,4 +40,3 @@ function(check_uuid uuid_string return_value)
       ${valid_uuid}
       PARENT_SCOPE)
 endfunction()
-

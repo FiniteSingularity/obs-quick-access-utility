@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16...3.26)
 
-##### probably best to move this to a seperate file
+# probably best to move this to a seperate file
 function(setup_obs_lib_dependency target)
   if(BUILD_OUT_OF_TREE)
     find_package(libobs)
@@ -12,9 +12,7 @@ function(setup_obs_lib_dependency target)
       endif()
       target_link_libraries(${target} PUBLIC ${LIBOBS_LIB})
       if(NOT LIBOBS_INCLUDE_DIR)
-        message(
-          FATAL_ERROR "obs.hpp header not found - please set LIBOBS_INCLUDE_DIR"
-        )
+        message(FATAL_ERROR "obs.hpp header not found - please set LIBOBS_INCLUDE_DIR")
       endif()
       target_include_directories(${target} PRIVATE ${LIBOBS_INCLUDE_DIR})
     endif()
@@ -23,30 +21,22 @@ function(setup_obs_lib_dependency target)
       target_link_libraries(${target} PUBLIC OBS::obs-frontend-api)
     else()
       if(NOT LIBOBS_FRONTEND_API_LIB)
-        message(
-          FATAL_ERROR
-            "libobs frontend-api library not found - please set LIBOBS_FRONTEND_API_LIB"
-        )
+        message(FATAL_ERROR "libobs frontend-api library not found - please set LIBOBS_FRONTEND_API_LIB")
       endif()
       target_link_libraries(${target} PUBLIC ${LIBOBS_FRONTEND_API_LIB})
       if(NOT LIBOBS_FRONTEND_INCLUDE_DIR)
-        message(
-          FATAL_ERROR
-            " obs-frontend-api.h not found - please set LIBOBS_FRONTEND_INCLUDE_DIR"
-        )
+        message(FATAL_ERROR " obs-frontend-api.h not found - please set LIBOBS_FRONTEND_INCLUDE_DIR")
       endif()
-      target_include_directories(${target}
-                                 PRIVATE ${LIBOBS_FRONTEND_INCLUDE_DIR})
+      target_include_directories(${target} PRIVATE ${LIBOBS_FRONTEND_INCLUDE_DIR})
     endif()
   else()
     target_link_libraries(${target} PUBLIC OBS::libobs OBS::frontend-api)
   endif()
 endfunction()
 
-#####
+#
 
 project(obs-quick-access-utility VERSION 0.0.1)
-
 
 message(STATUS "CMAKE_PROJECT_NAME is ${CMAKE_PROJECT_NAME}")
 if(${CMAKE_PROJECT_NAME} STREQUAL "obs-studio")
@@ -61,8 +51,7 @@ else()
 endif()
 
 if(BUILD_OUT_OF_TREE)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake"
-          NO_POLICY_SCOPE)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
   include(compilerconfig)
   include(defaults)
   include(helpers)
@@ -76,48 +65,44 @@ add_library(${PROJECT_NAME} MODULE)
 if(BUILD_OUT_OF_TREE)
   find_package(${OBS_FRONTEND_API_NAME} REQUIRED)
 endif()
+
 target_link_libraries(${PROJECT_NAME} PRIVATE OBS::${OBS_FRONTEND_API_NAME})
 
-message(STATUS "========== QT ENABLED ==========")
 find_package(Qt6 COMPONENTS Widgets Core)
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
-target_compile_options(
-  ${PROJECT_NAME}
-  PRIVATE
-    $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header
-    -Wno-comma>)
-
+target_compile_options(${PROJECT_NAME}
+                       PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>)
 
 set_target_properties(
   ${PROJECT_NAME}
   PROPERTIES AUTOMOC ON
-              AUTOUIC ON
-              AUTORCC ON)
+             AUTOUIC ON
+             AUTORCC ON)
 
-target_sources(${PROJECT_NAME} PRIVATE 
-  src/plugin-module.c
-  src/quick-access-utility.cpp
-  src/quick-access-utility.hpp
-  src/quick-access-dock.cpp
-  src/quick-access-dock.hpp
-  src/quick-access.cpp
-  src/quick-access.hpp
-  src/version.h)
+target_sources(
+  ${PROJECT_NAME}
+  PRIVATE src/plugin-module.c
+          src/quick-access-utility.cpp
+          src/quick-access-utility.hpp
+          src/quick-access-dock.cpp
+          src/quick-access-dock.hpp
+          src/quick-access.cpp
+          src/quick-access.hpp
+          src/version.h)
 
-  target_include_directories(${PROJECT_NAME}
-                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-  
-  setup_obs_lib_dependency(${PROJECT_NAME})
-  if(BUILD_OUT_OF_TREE)
-    set_target_properties_plugin(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+setup_obs_lib_dependency(${PROJECT_NAME})
+if(BUILD_OUT_OF_TREE)
+  set_target_properties_plugin(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+else()
+  set_target_properties_obs(${PROJECT_NAME} PROPERTIES FOLDER "plugins/finitesingularity" PREFIX "")
+endif()
+
+if(BUILD_OUT_OF_TREE)
+  if(OS_WINDOWS)
+    set(OBS_PLUGIN_DESTINATION "obs-plugins/64bit")
   else()
-    set_target_properties_obs(${PROJECT_NAME} PROPERTIES FOLDER "plugins/finitesingularity" PREFIX "")
+    set(OBS_PLUGIN_DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-plugins")
   endif()
-
-  if(BUILD_OUT_OF_TREE)
-    if(OS_WINDOWS)
-      set(OBS_PLUGIN_DESTINATION "obs-plugins/64bit")
-    else()
-      set(OBS_PLUGIN_DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-plugins")
-    endif()
-  endif()
+endif()
