@@ -181,7 +181,7 @@ Usage: %B${functrace[1]%:*}%b <option>
 
   set -- ${(@)args}
   set_loglevel ${verbosity}
-
+  echo ${FORMATTER_NAME}
   invoke_formatter ${FORMATTER_NAME}
 }
 
