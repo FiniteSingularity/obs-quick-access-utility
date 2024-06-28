@@ -16,25 +16,27 @@
 #define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
 
+QuickAccessUtility *qau = nullptr;
+QuickAccessUtilityDialog *qauDialog = nullptr;
 
-QuickAccessUtility* qau = nullptr;
-QuickAccessUtilityDialog* qauDialog = nullptr;
+QuickAccessUtilityDialog *QuickAccessUtilityDialog::dialog = nullptr;
 
-QuickAccessUtilityDialog* QuickAccessUtilityDialog::dialog = nullptr;
-
-QuickAccessUtility::QuickAccessUtility(obs_module_t* m)
- : _module(m), _firstRun(false)
+QuickAccessUtility::QuickAccessUtility(obs_module_t *m)
+	: _module(m),
+	  _firstRun(false)
 {
-	obs_frontend_add_event_callback(QuickAccessUtility::FrontendCallback, this);
+	obs_frontend_add_event_callback(QuickAccessUtility::FrontendCallback,
+					this);
 }
 
 QuickAccessUtility::~QuickAccessUtility()
 {
 	// Dont need to delete dock pointers, as they are managed by OBS.
-	obs_frontend_remove_event_callback(QuickAccessUtility::FrontendCallback, this);
+	obs_frontend_remove_event_callback(QuickAccessUtility::FrontendCallback,
+					   this);
 }
 
-void QuickAccessUtility::SourceCreated(void* data, calldata_t* params)
+void QuickAccessUtility::SourceCreated(void *data, calldata_t *params)
 {
 	blog(LOG_INFO, "Source Created!");
 	UNUSED_PARAMETER(data);
@@ -42,19 +44,19 @@ void QuickAccessUtility::SourceCreated(void* data, calldata_t* params)
 	//obs_source_t* source_ptr = static_cast<obs_source_t*>(calldata_ptr(params, "source"));
 }
 
-void QuickAccessUtility::SourceDestroyed(void* data, calldata_t* params)
+void QuickAccessUtility::SourceDestroyed(void *data, calldata_t *params)
 {
 	UNUSED_PARAMETER(data);
 	UNUSED_PARAMETER(params);
 	blog(LOG_INFO, "Source Destroyed!");
-	for (auto& dock : qau->_docks) {
+	for (auto &dock : qau->_docks) {
 		if (dock) {
 			dock->SourceDestroyed();
 		}
 	}
 }
 
-obs_module_t* QuickAccessUtility::GetModule()
+obs_module_t *QuickAccessUtility::GetModule()
 {
 	return _module;
 }
@@ -63,7 +65,8 @@ void QuickAccessUtility::RemoveDock(int idx)
 {
 	auto dock = _docks.at(idx);
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
-	obs_frontend_remove_dock(("quick-access-dock_" + dock->GetId()).c_str());
+	obs_frontend_remove_dock(
+		("quick-access-dock_" + dock->GetId()).c_str());
 #else
 	dock->parentWidget()->close();
 	delete (dock->parentWidget());
@@ -72,14 +75,15 @@ void QuickAccessUtility::RemoveDock(int idx)
 	_docks.erase(_docks.begin() + idx);
 }
 
-void QuickAccessUtility::Load(obs_data_t* data)
+void QuickAccessUtility::Load(obs_data_t *data)
 {
 	blog(LOG_INFO, "QAU::Load called.");
-	for (auto& dock : _docks) {
+	for (auto &dock : _docks) {
 		delete dock;
 	}
 	_docks.clear();
-	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	const auto mainWindow =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	auto qauData = obs_data_get_obj(data, "quick_access_utility");
 	if (!qauData) {
 		qauData = obs_data_create();
@@ -100,7 +104,7 @@ void QuickAccessUtility::Load(obs_data_t* data)
 	obs_data_release(qauData);
 }
 
-void QuickAccessUtility::Save(obs_data_t* data)
+void QuickAccessUtility::Save(obs_data_t *data)
 {
 	blog(LOG_INFO, "QAU::Save called.");
 	auto saveData = obs_data_create();
@@ -108,7 +112,7 @@ void QuickAccessUtility::Save(obs_data_t* data)
 	obs_data_set_bool(saveData, "first_run", _firstRun);
 	obs_data_set_array(saveData, "docks", dockArray);
 
-	for (auto& dock : _docks) {
+	for (auto &dock : _docks) {
 		dock->Save(saveData);
 	}
 
@@ -119,9 +123,10 @@ void QuickAccessUtility::Save(obs_data_t* data)
 
 void QuickAccessUtility::RemoveDocks()
 {
-	for (auto& dock : _docks) {
+	for (auto &dock : _docks) {
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
-		obs_frontend_remove_dock(("quick-access-dock_" + dock->GetId()).c_str());
+		obs_frontend_remove_dock(
+			("quick-access-dock_" + dock->GetId()).c_str());
 #else
 		dock->parentWidget()->close();
 		delete (dock->parentWidget());
@@ -131,17 +136,31 @@ void QuickAccessUtility::RemoveDocks()
 	_docks.clear();
 }
 
-void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event, void* data)
+void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
+					  void *data)
 {
 	UNUSED_PARAMETER(data);
-	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED || event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED ||
+	    event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 		blog(LOG_INFO, "QAU::Scene Collection Changed/Finshed Loading");
-		signal_handler_connect_ref(obs_get_signal_handler(), "source_create", QuickAccessUtility::SourceCreated, qau);
-		signal_handler_connect_ref(obs_get_signal_handler(), "source_destroy", QuickAccessUtility::SourceDestroyed, qau);
+		signal_handler_connect_ref(obs_get_signal_handler(),
+					   "source_create",
+					   QuickAccessUtility::SourceCreated,
+					   qau);
+		signal_handler_connect_ref(obs_get_signal_handler(),
+					   "source_destroy",
+					   QuickAccessUtility::SourceDestroyed,
+					   qau);
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
 		blog(LOG_INFO, "QAU::Scene Collection Cleanup/Exit");
-		signal_handler_disconnect(obs_get_signal_handler(), "source_create", QuickAccessUtility::SourceCreated, qau);
-		signal_handler_disconnect(obs_get_signal_handler(), "source_destroy", QuickAccessUtility::SourceDestroyed, qau);
+		signal_handler_disconnect(obs_get_signal_handler(),
+					  "source_create",
+					  QuickAccessUtility::SourceCreated,
+					  qau);
+		signal_handler_disconnect(obs_get_signal_handler(),
+					  "source_destroy",
+					  QuickAccessUtility::SourceDestroyed,
+					  qau);
 		qau->RemoveDocks();
 		qau->_sceneCollectionChanging = false;
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
@@ -160,17 +179,18 @@ void QuickAccessUtility::CreateDock(CreateDockFormData data)
 	obs_data_set_string(dockData, "dock_name", data.dockName.c_str());
 	obs_data_set_string(dockData, "dock_type", data.dockType.c_str());
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(29, 1, 0)
-	char* dockId = os_generate_uuid();
+	char *dockId = os_generate_uuid();
 	obs_data_set_string(dockData, "dock_id", dockId);
 	bfree(dockId);
 #else
-	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	unsigned seed =
+		std::chrono::system_clock::now().time_since_epoch().count();
 	std::mt19937 rng(seed);
 	unsigned v = rng();
 	std::string dockId = std::to_string(v);
 	obs_data_set_string(dockData, "dock_id", dockId.c_str());
 #endif
-	
+
 	obs_data_set_bool(dockData, "show_properties", data.showProperties);
 	obs_data_set_bool(dockData, "show_filters", data.showFilters);
 	obs_data_set_bool(dockData, "show_scenes", data.showScenes);
@@ -182,7 +202,8 @@ void QuickAccessUtility::CreateDock(CreateDockFormData data)
 	obs_data_set_array(dockData, "dock_sources", sourcesArray);
 
 	// Create new dock
-	const auto mainWindow = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	const auto mainWindow =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	auto dock = new QuickAccessDock(mainWindow, dockData);
 	_docks.push_back(dock);
 	obs_data_release(dockData);
@@ -192,9 +213,10 @@ void QuickAccessUtility::CreateDock(CreateDockFormData data)
 	}
 }
 
-QIcon QuickAccessUtility::GetIconFromType(const char* type) const
+QIcon QuickAccessUtility::GetIconFromType(const char *type) const
 {
-	const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	const auto main_window =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 
 	auto icon_type = obs_source_get_icon_type(type);
 
@@ -227,7 +249,8 @@ QIcon QuickAccessUtility::GetIconFromType(const char* type) const
 		//TODO: Add ability for sources to define custom icons
 		return main_window->property("defaultIcon").value<QIcon>();
 	case OBS_ICON_TYPE_PROCESS_AUDIO_OUTPUT:
-		return main_window->property("audioProcessOutputIcon").value<QIcon>();
+		return main_window->property("audioProcessOutputIcon")
+			.value<QIcon>();
 	default:
 		return main_window->property("defaultIcon").value<QIcon>();
 	}
@@ -235,18 +258,20 @@ QIcon QuickAccessUtility::GetIconFromType(const char* type) const
 
 QIcon QuickAccessUtility::GetSceneIcon() const
 {
-	const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	const auto main_window =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	return main_window->property("sceneIcon").value<QIcon>();
 }
 
 QIcon QuickAccessUtility::GetGroupIcon() const
 {
-	const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
+	const auto main_window =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	return main_window->property("groupIcon").value<QIcon>();
 }
 
 QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
- : QDialog(parent)
+	: QDialog(parent)
 {
 	qau->mainWindowOpen = true;
 	qau->dialog = this;
@@ -306,7 +331,6 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	headerClickableScenes->setToolTip("Clickable Scenes?");
 
 	headerClickableScenes->setStyleSheet("padding: 0px; background: none");
-	
 
 	_layout->addWidget(header);
 
@@ -315,7 +339,8 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	sizePolicy.setHorizontalStretch(0);
 	sizePolicy.setVerticalStretch(0);
-	sizePolicy.setHeightForWidth(_dockList->sizePolicy().hasHeightForWidth());
+	sizePolicy.setHeightForWidth(
+		_dockList->sizePolicy().hasHeightForWidth());
 	_dockList->setSizePolicy(sizePolicy);
 	_dockList->setContextMenuPolicy(Qt::CustomContextMenu);
 	_dockList->setFrameShape(QFrame::NoFrame);
@@ -336,7 +361,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	_toolbar->setFloatable(false);
 
 	// Spacer to align buttons to right side of toolbar.
-	QWidget* spacer = new QWidget(this);
+	QWidget *spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	spacer->setVisible(true);
 	_toolbar->addWidget(spacer);
@@ -373,7 +398,7 @@ void QuickAccessUtilityDialog::LoadDockList()
 {
 	_dockList->clear();
 
-	for (auto& dock : qau->GetDocks()) {
+	for (auto &dock : qau->GetDocks()) {
 		auto item = new QListWidgetItem();
 		_dockList->addItem(item);
 		auto itemWidget = new DockListItem(dock, this);
@@ -389,13 +414,16 @@ QuickAccessUtilityDialog::~QuickAccessUtilityDialog()
 	}
 }
 
-void QuickAccessUtilityDialog::on_actionAddDock_triggered() {
-	const auto main_window = static_cast<QMainWindow*>(obs_frontend_get_main_window());
-	CreateDockDialog* dockDialog = new CreateDockDialog(main_window);
+void QuickAccessUtilityDialog::on_actionAddDock_triggered()
+{
+	const auto main_window =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	CreateDockDialog *dockDialog = new CreateDockDialog(main_window);
 	dockDialog->show();
 }
 
-void QuickAccessUtilityDialog::on_actionRemoveDock_triggered() {
+void QuickAccessUtilityDialog::on_actionRemoveDock_triggered()
+{
 	auto idx = _dockList->currentRow();
 	qau->RemoveDock(idx);
 	LoadDockList();
@@ -408,19 +436,24 @@ void OpenQAUDialog()
 		QuickAccessUtilityDialog::dialog->raise();
 		QuickAccessUtilityDialog::dialog->activateWindow();
 	} else {
-		QuickAccessUtilityDialog::dialog = new QuickAccessUtilityDialog(static_cast<QMainWindow*>(obs_frontend_get_main_window()));
-		QuickAccessUtilityDialog::dialog->setAttribute(Qt::WA_DeleteOnClose);
+		QuickAccessUtilityDialog::dialog =
+			new QuickAccessUtilityDialog(static_cast<QMainWindow *>(
+				obs_frontend_get_main_window()));
+		QuickAccessUtilityDialog::dialog->setAttribute(
+			Qt::WA_DeleteOnClose);
 		QuickAccessUtilityDialog::dialog->show();
 	}
 }
 
-DockListItem::DockListItem(QuickAccessDock* dock, QWidget* parent)
- : QFrame(parent), _dock(dock)
+DockListItem::DockListItem(QuickAccessDock *dock, QWidget *parent)
+	: QFrame(parent),
+	  _dock(dock)
 {
 	_layout = new QHBoxLayout(this);
 	_layout->setSpacing(4);
 	_layout->setContentsMargins(0, 0, 0, 0);
-	std::string labelText = _dock->GetName() + " [" + _dock->GetType() + "]";
+	std::string labelText =
+		_dock->GetName() + " [" + _dock->GetType() + "]";
 	_label = new QLabel(this);
 	_label->setText(labelText.c_str());
 	_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -428,7 +461,8 @@ DockListItem::DockListItem(QuickAccessDock* dock, QWidget* parent)
 	_label->setAttribute(Qt::WA_TranslucentBackground);
 
 	_clickableScenes = new QCheckBox();
-	_clickableScenes->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+	_clickableScenes->setSizePolicy(QSizePolicy::Maximum,
+					QSizePolicy::Maximum);
 	_clickableScenes->setChecked(_dock->ClickableScenes());
 	_clickableScenes->setStyleSheet("background: none");
 	_clickableScenes->setAccessibleName("Clickable Scenes");
@@ -458,7 +492,8 @@ DockListItem::DockListItem(QuickAccessDock* dock, QWidget* parent)
 	auto setClickableScenes = [this](bool val) {
 		_dock->SetClickableScenes(val);
 	};
-	connect(_clickableScenes, &QAbstractButton::clicked, setClickableScenes);
+	connect(_clickableScenes, &QAbstractButton::clicked,
+		setClickableScenes);
 
 	auto setPropertiesVisible = [this](bool val) {
 		_dock->SetProperties(val);
@@ -485,8 +520,7 @@ DockListItem::DockListItem(QuickAccessDock* dock, QWidget* parent)
 	_layout->addWidget(_clickableScenes);
 }
 
-CreateDockDialog::CreateDockDialog(QWidget* parent)
- : QDialog(parent)
+CreateDockDialog::CreateDockDialog(QWidget *parent) : QDialog(parent)
 {
 	setWindowModality(Qt::WindowModal);
 	setAttribute(Qt::WA_DeleteOnClose, true);
@@ -507,9 +541,11 @@ CreateDockDialog::CreateDockDialog(QWidget* parent)
 
 	_inputName = new QLineEdit(this);
 	_inputName->setPlaceholderText("Dock Name");
-	_inputName->connect(_inputName, &QLineEdit::textChanged, [this](const QString text) {
-		_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(text.length() > 0);
-	});
+	_inputName->connect(_inputName, &QLineEdit::textChanged,
+			    [this](const QString text) {
+				    _buttonBox->button(QDialogButtonBox::Ok)
+					    ->setEnabled(text.length() > 0);
+			    });
 
 	layoutName->addWidget(inputLabel);
 	layoutName->addWidget(_inputName);
@@ -555,7 +591,8 @@ CreateDockDialog::CreateDockDialog(QWidget* parent)
 	_layout2->addWidget(_clickThroughScenes);
 
 	_buttonBox = new QDialogButtonBox(this);
-	_buttonBox->setStandardButtons(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
+	_buttonBox->setStandardButtons(QDialogButtonBox::Cancel |
+				       QDialogButtonBox::Ok);
 	_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
 
 	connect(_buttonBox, SIGNAL(accepted()), this, SLOT(on_create_dock()));
@@ -564,13 +601,13 @@ CreateDockDialog::CreateDockDialog(QWidget* parent)
 	_layout->addItem(_layout2);
 
 	// Spacer to push buttons to bottom of widget
-	QWidget* spacer = new QWidget(this);
+	QWidget *spacer = new QWidget(this);
 	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	spacer->setVisible(true);
 	_layout->addWidget(spacer);
 
 	_layout->addWidget(_buttonBox);
-	
+
 	setLayout(_layout);
 }
 
@@ -594,25 +631,27 @@ void CreateDockDialog::on_cancel()
 	done(DialogCode::Rejected);
 }
 
-
 extern "C" EXPORT void InitializeQAU(obs_module_t *module,
-					 translateFunc translate)
+				     translateFunc translate)
 {
 	UNUSED_PARAMETER(translate);
 	qau = new QuickAccessUtility(module);
-	QAction* action = (QAction*)obs_frontend_add_tools_menu_qaction("Quick Access Utility");
+	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(
+		"Quick Access Utility");
 	action->connect(action, &QAction::triggered, OpenQAUDialog);
 
 	obs_frontend_add_save_callback(frontendSaveLoad, qau);
 }
 
-extern "C" EXPORT void ShutdownQAU() {
+extern "C" EXPORT void ShutdownQAU()
+{
 	blog(LOG_INFO, "ShutdownQAU called.");
 	obs_frontend_remove_save_callback(frontendSaveLoad, qau);
 	delete qau;
 }
 
-void frontendSaveLoad(obs_data_t* save_data, bool saving, void* data) {
+void frontendSaveLoad(obs_data_t *save_data, bool saving, void *data)
+{
 	auto quickAccessUtility = static_cast<QuickAccessUtility *>(data);
 	if (saving) {
 		quickAccessUtility->Save(save_data);
