@@ -207,6 +207,8 @@ bool QuickAccessItem::GetSceneItemsFromScene(void* data, obs_source_t* s) {
 }
 
 bool QuickAccessItem::AddSceneItems(obs_scene_t* scene, obs_sceneitem_t* sceneItem, void* data) {
+	UNUSED_PARAMETER(scene);
+
 	auto qai = static_cast<QuickAccessItem*>(data);
 	auto source = obs_sceneitem_get_source(sceneItem);
 	if (obs_source_is_group(source)) {
