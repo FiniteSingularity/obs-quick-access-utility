@@ -103,7 +103,7 @@ function Build {
     Invoke-External mkdir @("/installer")
 
     Copy-Item -Path "${ProjectRoot}/release/${Configuration}/*" -Destination "/package" -Recurse
-    Copy-Item -Path "${ProjectRoot}/build_${Target}/installer-Windows.generated.iss" -Destination "/installer"
+    Copy-Item -Path "${ProjectRoot}/build_${Target}/installer-Windows.generated.iss" -Destination "/installer/installer.iss"
 
     Pop-Location -Stack BuildTemp
     Log-Group
