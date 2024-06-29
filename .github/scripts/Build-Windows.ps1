@@ -109,7 +109,7 @@ function Build {
     # Invoke-External dir @("${ProjectRoot}/release/${Configuration}")
     # Invoke-External ls @("${ProjectRoot}/release/${Configuration}")
     
-    Invoke-External cd @("${ProjectRoot}/release/${Configuration}")
+    Invoke-External cd @("release/${Configuration}")
     Invoke-External dir
 
     Pop-Location -Stack BuildTemp
