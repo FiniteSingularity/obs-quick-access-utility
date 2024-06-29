@@ -99,14 +99,11 @@ function Build {
     Invoke-External cmake @CmakeInstallArgs
 
     Log-Group "Preparing for artifact upload..."
-    Invoke-External mkdir @("${ProjectRoot}/package")
-    Invoke-External mkdir @("${ProjectRoot}/installer")
-    Invoke-External mkdir @("${ProjectRoot}/installer/media")
+    Invoke-External mkdir @("/package")
+    Invoke-External mkdir @("/installer")
 
-    Copy-Item -Path "${ProjectRoot}/release/${Configuration}/*" -Destination "${ProjectRoot}/package" -Recurse
-    Get-ChildItem -Path "${ProjectRoot}/package" -Recurse -Force
-
-    Get-ChildItem -Path "${ProjectRoot}/build_${Target}"
+    Copy-Item -Path "${ProjectRoot}/release/${Configuration}/*" -Destination "/package" -Recurse
+    Copy-Item -Path "${ProjectRoot}/build_${Target}/installer-Windows.generated.iss" -Destination "/installer"
 
     Pop-Location -Stack BuildTemp
     Log-Group
