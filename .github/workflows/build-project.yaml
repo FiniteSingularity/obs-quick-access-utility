@@ -314,9 +314,6 @@ jobs:
       - name: "Package Installer (Compile)"
         run: |
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Qp ".\installer.iss"
-      - name: "List files..."
-        run: |
-          & 'dir Output'
       - name: Publish installer
         if: success()
         uses: actions/upload-artifact@v4
