@@ -314,7 +314,7 @@ jobs:
           path: package/*
       - name: "Package Installer (Compile)"
         run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"installer.exe" /Qp ".\installer.iss"
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"installer" /Qp ".\installer.iss"
       - name: "Directory contents"
         run: |
           & Get-ChildItem -Path Output
@@ -376,7 +376,7 @@ jobs:
           path: package/*
       - name: "Package Installer (Compile)"
         run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' \F"installer.exe" /Qp ".\installer.iss"
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"installer" /Qp ".\installer.iss"
       - name: Code Sign Installer
         if: success()
         run: |
