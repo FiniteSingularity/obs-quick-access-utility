@@ -103,8 +103,11 @@ function Build {
     Invoke-External mkdir @("${ProjectRoot}/installer")
     Invoke-External mkdir @("${ProjectRoot}/installer/media")
 
-    Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}"
-    
+    Copy-Item -Path "${ProjectRoot}/release/${Configuration}/*" -Destination "${ProjectRoot}/package" -Recurse
+    Get-ChildItem -Path "${ProjectRoot}/package" -Recurse -Force
+
+    Get-ChildItem -Path "${ProjectRoot}/build_${Target}"
+
     Pop-Location -Stack BuildTemp
     Log-Group
 }
