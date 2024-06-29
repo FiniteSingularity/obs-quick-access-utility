@@ -310,7 +310,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "${{ env.FILE_NAME }}"
-          path: package/*
+          path: ./package/*
       - name: "Package Installer (Compile)"
         run: |
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Qp ".\installer.iss"
