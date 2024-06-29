@@ -5,6 +5,9 @@ on:
       pluginName:
         description: 'Project name detected by parsing build spec file'
         value: ${{ jobs.check-event.outputs.pluginName }}
+env:
+  PLUGIN_NAME: obs-quick-access-utility
+
 jobs:
   check-event:
     name: Check GitHub Event Data 🔎
@@ -267,15 +270,124 @@ jobs:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
 
-      - name: Package Plugin 📀
-        uses: ./.github/actions/package-plugin
-        with:
-          target: x64
-          config: ${{ needs.check-event.outputs.config }}
-          package: ${{ fromJSON(needs.check-event.outputs.package) }}
+      # - name: Package Plugin 📀
+      #   uses: ./.github/actions/package-plugin
+      #   with:
+      #     target: x64
+      #     config: ${{ needs.check-event.outputs.config }}
+      #     package: ${{ fromJSON(needs.check-event.outputs.package) }}
 
-      - name: Upload Artifacts 📡
+      # - name: Upload Artifacts 📡
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
+      #     path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
+
+  windows-package:
+    name: Package Windows (no signing) 📀
+    if: github.event_name == 'pull_request'
+    runs-on: windows-2022
+    needs: windows-build
+    steps:
+      - name: Init
+        if: success()
+        run: |
+          mkdir ./package
+          $env:FILE_DATE=(Get-Date -UFormat "%F")
+          $env:FILE_NAME="${{ env.PLUGIN_NAME }}-${env:FILE_DATE}-${{ github.sha }}-windows"
+          echo "FILE_NAME=${env:FILE_NAME}" >> ${env:GITHUB_ENV}
+      - name: Retrieve Build
+        uses: actions/download-artifact@v4
+        with:
+          name: "tmp-package"
+          path: ./package
+      - name: Retrieve installer files
+        uses: actions/download-artifact@v4
+        with:
+          name: "tmp-installer"
+          path: .
+      - name: Publish zip
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
-          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
+          name: "${{ env.FILE_NAME }}"
+          path: package/*
+      - name: "Package Installer (Compile)"
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"${{ env.FILE_NAME }}-installer" /Qp ".\installer.iss"
+      - name: "Directory contents"
+        run: |
+          & Get-ChildItem -Path Output
+      - name: Publish installer
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.FILE_NAME }}-installer"
+          path: Output/*.exe
+      - name: Remove temp artifacts
+        uses: geekyeggo/delete-artifact@v2.0.0
+        with:
+          name: "tmp-package"
+      - name: Remove Installer Artifact
+        uses: geekyeggo/delete-artifact@v2.0.0
+        with:
+          name: "tmp-installer"
+
+  windows-package-signed:
+    name: Package Windows (signed) 📀
+    if: github.event_name == 'push'
+    runs-on: [self-hosted]
+    needs: windows-build
+    steps:
+      - name: Init
+        if: success()
+        run: |
+          mkdir ./package
+          $env:FILE_DATE=(Get-Date -UFormat "%F")
+          $env:FILE_NAME="${{ env.PLUGIN_NAME }}-${env:FILE_DATE}-${{ github.sha }}-windows"
+          echo "FILE_NAME=${env:FILE_NAME}" >> ${env:GITHUB_ENV}
+      - name: Setup Secrets
+        run: |
+          Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
+          Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
+      - name: Retrieve Build
+        uses: actions/download-artifact@v4
+        with:
+          name: "tmp-package"
+          path: ./package
+      - name: Retrieve installer files
+        uses: actions/download-artifact@v4
+        with:
+          name: "tmp-installer"
+          path: .
+      - name: Get ScSignTool
+        run: |
+          curl "-kL" "https://www.mgtek.com/files/smartcardtools.zip" "-f" "--retry" "5" "-o" "smartcardtools.zip"
+          7z x smartcardtools.zip -o"./smartcardtools"
+      - name: Code Sign Library
+        if: success()
+        run: |
+          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\obs-plugins\64bit\${{ env.PLUGIN_NAME }}.dll
+      - name: Publish zip
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.FILE_NAME }}"
+          path: package/*
+      - name: "Package Installer (Compile)"
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"${{ env.FILE_NAME }}-installer" /Qp ".\installer.iss"
+      - name: Code Sign Installer
+        if: success()
+        run: |
+          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\Output\installer.exe
+      - name: Publish installer
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.FILE_NAME }}-installer"
+          path: Output/*.exe
+      - name: Remove temp artifacts
+        uses: geekyeggo/delete-artifact@v2.0.0
+        with:
+          name: "tmp-package\ntmp-installer"

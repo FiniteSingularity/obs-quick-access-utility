@@ -63,7 +63,6 @@ runs:
           --config ${{ inputs.config }}
         )
         if (( ${+RUNNER_DEBUG} )) build_args+=(--debug)
-
         .github/scripts/build-linux ${build_args}
 
     - name: Run Windows Build
@@ -81,6 +80,20 @@ runs:
         }
 
         .github/scripts/Build-Windows.ps1 @BuildArgs
+
+    - name: Publish artifacts for install
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: "tmp-package"
+        path: /package/*
+
+    - name: Publish Installer Files
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: "tmp-installer"
+        path: /installer/*
 
     - name: Create Summary 📊
       if: contains(fromJSON('["Linux", "macOS"]'),runner.os)

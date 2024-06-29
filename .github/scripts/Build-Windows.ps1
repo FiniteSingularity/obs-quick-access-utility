@@ -98,6 +98,14 @@ function Build {
     Log-Group "Install ${ProductName}..."
     Invoke-External cmake @CmakeInstallArgs
 
+    Log-Group "Preparing for artifact upload..."
+    Invoke-External mkdir @("/package")
+    Invoke-External mkdir @("/installer")
+
+    Copy-Item -Path "${ProjectRoot}/release/${Configuration}/*" -Destination "/package" -Recurse
+    Copy-Item -Path "${ProjectRoot}/build_${Target}/installer-Windows.generated.iss" -Destination "/installer/installer.iss"
+    Copy-Item -Path "${Projectroot}/LICENSE" -Destination "/installer"
+
     Pop-Location -Stack BuildTemp
     Log-Group
 }
