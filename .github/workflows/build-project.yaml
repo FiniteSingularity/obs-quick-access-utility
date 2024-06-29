@@ -46,7 +46,7 @@ jobs:
             push)
               config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo')
               if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-(rc|beta).+)? ]]; then
-                config_data[1]='notarize:true'
+                config_data[1]='notarize:false'
                 config_data[3]='config:Release'
               fi
               ;;
@@ -380,7 +380,7 @@ jobs:
       - name: Code Sign Installer
         if: success()
         run: |
-          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\Output\${{ env.FILE_NAME }}-installer.exe
+          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\Output\installer.exe
       - name: Publish installer
         if: success()
         uses: actions/upload-artifact@v4
@@ -391,6 +391,3 @@ jobs:
         uses: geekyeggo/delete-artifact@v2.0.0
         with:
           name: "tmp-package\ntmp-installer"
-      - name: Cleanup
-        if: ${{ always() }}
-        run: rm -Recurse -Force ./*
