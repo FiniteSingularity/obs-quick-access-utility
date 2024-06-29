@@ -63,9 +63,7 @@ runs:
           --config ${{ inputs.config }}
         )
         if (( ${+RUNNER_DEBUG} )) build_args+=(--debug)
-        ls
         .github/scripts/build-linux ${build_args}
-        ls
 
     - name: Run Windows Build
       if: runner.os == 'Windows'
