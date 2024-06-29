@@ -86,14 +86,14 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: "tmp-package"
-        path: package/*
+        path: /package/*
 
     - name: Publish Installer Files
       if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: "tmp-installer"
-        path: installer/*
+        path: /installer/*
 
     - name: Create Summary 📊
       if: contains(fromJSON('["Linux", "macOS"]'),runner.os)
