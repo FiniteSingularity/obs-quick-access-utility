@@ -103,15 +103,8 @@ function Build {
     Invoke-External mkdir @("${ProjectRoot}/installer")
     Invoke-External mkdir @("${ProjectRoot}/installer/media")
 
-    Invoke-External dir
-
-    # Invoke-External dir @("${ProjectRoot}")
-    # Invoke-External dir @("${ProjectRoot}/release/${Configuration}")
-    # Invoke-External ls @("${ProjectRoot}/release/${Configuration}")
+    Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}"
     
-    Invoke-External cd @("release/${Configuration}")
-    Invoke-External dir
-
     Pop-Location -Stack BuildTemp
     Log-Group
 }
