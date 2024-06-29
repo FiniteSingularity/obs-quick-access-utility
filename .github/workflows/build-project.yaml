@@ -316,13 +316,13 @@ jobs:
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Qp ".\installer.iss"
       - name: "List files..."
         run: |
-          & 'dir'
+          & 'dir Output'
       - name: Publish installer
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: "${{ env.FILE_NAME }}-installer"
-          path: package/*.exe
+          path: Output/*.exe
       - name: Remove temp artifacts
         uses: geekyeggo/delete-artifact@v2.0.0
         with:
