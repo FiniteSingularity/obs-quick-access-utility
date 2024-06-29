@@ -98,6 +98,13 @@ function Build {
     Log-Group "Install ${ProductName}..."
     Invoke-External cmake @CmakeInstallArgs
 
+    Log-Group "Preparing for artifact upload..."
+    Invoke-External mkdir @("${ProjectRoot}/package")
+    Invoke-External mkdir @("${ProjectRoot}/installer")
+    Invoke-External mkdir @("${ProjectRoot}/installer/media")
+    Invoke-External ls
+    Invoke-External ls @("${ProjectRoot}/release/${Configuration}")
+
     Pop-Location -Stack BuildTemp
     Log-Group
 }
