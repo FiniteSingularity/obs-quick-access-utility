@@ -293,6 +293,7 @@ jobs:
         if: success()
         run: |
           mkdir ./package
+          mkdir ./archive
           $env:FILE_DATE=(Get-Date -UFormat "%F")
           $env:FILE_NAME="${{ env.PLUGIN_NAME }}-${env:FILE_DATE}-${{ github.sha }}-windows"
           echo "FILE_NAME=${env:FILE_NAME}" >> ${env:GITHUB_ENV}
@@ -306,24 +307,25 @@ jobs:
         with:
           name: "tmp-installer"
           path: .
-      - name: Publish zip
+      - name: Compress Plug-In
         if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: "${{ env.FILE_NAME }}"
-          path: package/*
+        run: |
+          Compress-Archive -Path package/* -Destination "archive/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64.zip"
+      # - name: Publish zip
+      #   if: success()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
+      #     path: package/*
       - name: "Package Installer (Compile)"
         run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"${{ env.FILE_NAME }}-installer" /Qp ".\installer.iss"
-      - name: "Directory contents"
-        run: |
-          & Get-ChildItem -Path Output
-      - name: Publish installer
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /O".\archive" /F"${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer" /Qp ".\installer.iss"
+      - name: Publish Archive
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ env.FILE_NAME }}-installer"
-          path: Output/*.exe
+          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}"
+          path: archive/*
       - name: Remove temp artifacts
         uses: geekyeggo/delete-artifact@v2.0.0
         with:
