@@ -333,13 +333,11 @@ jobs:
           name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ steps.setup.outputs.shortSha }}"
           path: archive/*
       - name: Remove temp artifacts
-        uses: geekyeggo/delete-artifact@v2.0.0
+        uses: geekyeggo/delete-artifact@v5
         with:
-          name: "tmp-package"
-      - name: Remove Installer Artifact
-        uses: geekyeggo/delete-artifact@v2.0.0
-        with:
-          name: "tmp-installer"
+          name: |
+            tmp-package
+            tmp-installer
 
   windows-package-signed:
     name: Package Windows (signed) 📀
@@ -407,9 +405,11 @@ jobs:
           name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ steps.setup.outputs.shortSha }}"
           path: archive/*
       - name: Remove temp artifacts
-        uses: geekyeggo/delete-artifact@v2.0.0
+        uses: geekyeggo/delete-artifact@v5
         with:
-          name: "tmp-package\ntmp-installer"
+          name: |
+            tmp-package
+            tmp-installer
       - name: Cleanup
         if: ${{ always() }}
         run: rm -Recurse -Force ./*
