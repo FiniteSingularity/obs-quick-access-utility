@@ -399,7 +399,7 @@ jobs:
       - name: Code Sign Installer
         if: success()
         run: |
-          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\archive\${{ env.FILE_NAME }}-${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer.exe
+          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\archive\${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer.exe
       - name: Publish Archive
         if: success()
         uses: actions/upload-artifact@v4
