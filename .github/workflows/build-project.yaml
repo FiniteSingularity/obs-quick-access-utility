@@ -289,14 +289,6 @@ jobs:
     runs-on: windows-2022
     needs: windows-build
     steps:
-      - name: Init
-        if: success()
-        run: |
-          mkdir ./package
-          mkdir ./archive
-          $env:FILE_DATE=(Get-Date -UFormat "%F")
-          $env:FILE_NAME="${{ env.PLUGIN_NAME }}-${env:FILE_DATE}-${{ github.sha }}-windows"
-          echo "FILE_NAME=${env:FILE_NAME}" >> ${env:GITHUB_ENV}
       - name: Retrieve Build
         uses: actions/download-artifact@v4
         with:
@@ -314,6 +306,9 @@ jobs:
           if ( $Env:RUNNER_DEBUG -ne $null ) {
             Set-PSDebug -Trace 1
           }
+
+          mkdir ./package
+          mkdir ./archive
 
           $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
           $ProductName = $BuildSpec.name
@@ -351,31 +346,6 @@ jobs:
     runs-on: [self-hosted]
     needs: windows-build
     steps:
-      - name: Set Up Environment 🔧
-        id: setup
-        run: |
-          # Set Up Environment 🔧
-          if ( $Env:RUNNER_DEBUG -ne $null ) {
-            Set-PSDebug -Trace 1
-          }
-
-          $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
-          $ProductName = $BuildSpec.name
-          $ProductVersion = $BuildSpec.version
-
-          "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
-          "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
-      - name: Init
-        if: success()
-        run: |
-          mkdir ./package
-          $env:FILE_DATE=(Get-Date -UFormat "%F")
-          $env:FILE_NAME="${{ env.PLUGIN_NAME }}-${env:FILE_DATE}-${{ github.sha }}-windows"
-          echo "FILE_NAME=${env:FILE_NAME}" >> ${env:GITHUB_ENV}
-      - name: Setup Secrets
-        run: |
-          Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
-          Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
       - name: Retrieve Build
         uses: actions/download-artifact@v4
         with:
@@ -386,6 +356,29 @@ jobs:
         with:
           name: "tmp-installer"
           path: .
+      - name: Set Up Environment 🔧
+        id: setup
+        run: |
+          # Set Up Environment 🔧
+          if ( $Env:RUNNER_DEBUG -ne $null ) {
+            Set-PSDebug -Trace 1
+          }
+
+          mkdir ./package
+          mkdir ./archive
+
+          $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
+          $ProductName = $BuildSpec.name
+          $ProductVersion = $BuildSpec.version
+          $ShortSha = "${{ github.sha }}".SubString(0, 9)
+
+          "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
+          "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
+          "shortSha=${ShortSha}" >> $env:GITHUB_OUTPUT
+      - name: Setup Secrets
+        run: |
+          Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
+          Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
       - name: Get ScSignTool
         run: |
           curl "-kL" "https://www.mgtek.com/files/smartcardtools.zip" "-f" "--retry" "5" "-o" "smartcardtools.zip"
@@ -394,25 +387,23 @@ jobs:
         if: success()
         run: |
           & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\obs-plugins\64bit\${{ env.PLUGIN_NAME }}.dll
-      - name: Publish zip
+      - name: Compress Plug-In
         if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: "${{ env.FILE_NAME }}"
-          path: package/*
+        run: |
+          Compress-Archive -Path package/* -Destination "archive/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64.zip"
       - name: "Package Installer (Compile)"
         run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /F"${{ env.FILE_NAME }}-installer" /Qp ".\installer.iss"
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /O".\archive" /F"${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer" /Qp ".\installer.iss"
       - name: Code Sign Installer
         if: success()
         run: |
           & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\Output\${{ env.FILE_NAME }}-installer.exe
-      - name: Publish installer
+      - name: Publish Archive
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ env.FILE_NAME }}-installer"
-          path: Output/*.exe
+          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ steps.setup.outputs.shortSha }}"
+          path: archive/*
       - name: Remove temp artifacts
         uses: geekyeggo/delete-artifact@v2.0.0
         with:
