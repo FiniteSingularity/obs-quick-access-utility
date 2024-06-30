@@ -77,57 +77,47 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessDock *dock,
 	layout->addSpacing(2);
 	layout->addWidget(_label);
 
-	_actionsToolbar = new QToolBar(this);
-	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
-	_actionsToolbar->setIconSize(QSize(16, 16));
-	_actionsToolbar->setFixedHeight(22);
-	_actionsToolbar->setStyleSheet("QToolBar{spacing: 0px;}");
-	_actionsToolbar->setFloatable(false);
-	_actionsToolbar->setSizePolicy(QSizePolicy::Maximum,
-				       QSizePolicy::Maximum);
-	_actionsToolbar->setStyleSheet(
-		"QToolButton {padding: 0px; margin-left: 2px; margin-right: 2px;}");
-
-	_actionProperties = new QAction(this);
-	_actionProperties->setObjectName(QStringLiteral("actionProperties"));
+	_actionProperties = new QPushButton();
 	_actionProperties->setProperty("themeID", "propertiesIconSmall");
-	_actionProperties->setText(QT_UTF8(obs_module_text("Properties")));
-	connect(_actionProperties, SIGNAL(triggered()), this,
-		SLOT(on_actionProperties_triggered()));
-	_actionsToolbar->addAction(_actionProperties);
+	_actionProperties->setDisabled(false);
+	_actionProperties->setAccessibleDescription(
+		"Opens the source properties window.");
+	_actionProperties->setAccessibleName("Open Source Properties");
+	_actionProperties->setToolTip("Open Source Properties");
+	_actionProperties->setStyleSheet("padding: 0px; background: none");
+	connect(_actionProperties, &QPushButton::released, this,
+		&QuickAccessItem::on_actionProperties_triggered);
 
-	_actionFilters = new QAction(this);
-	_actionFilters->setObjectName(QStringLiteral("actionFilters"));
-	_actionFilters->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	_actionFilters = new QPushButton();
 	_actionFilters->setProperty("themeID", "filtersIcon");
-	_actionFilters->setText(QT_UTF8(obs_module_text("Filters")));
-	connect(_actionFilters, SIGNAL(triggered()), this,
-		SLOT(on_actionFilters_triggered()));
-	_actionsToolbar->addAction(_actionFilters);
+	_actionFilters->setDisabled(false);
+	_actionFilters->setAccessibleDescription(
+		"Opens the source filters window.");
+	_actionFilters->setAccessibleName("Open Source Filters");
+	_actionFilters->setToolTip("Open Source Filters");
+	_actionFilters->setStyleSheet("padding: 0px; background: none");
+	connect(_actionFilters, &QPushButton::released, this,
+		&QuickAccessItem::on_actionFilters_triggered);
 
-	_actionScenes = new QAction(this);
-	_actionScenes->setObjectName(QStringLiteral("actionScenes"));
-	_actionScenes->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	_actionScenes = new QPushButton();
 	QIcon sceneIcon;
 	sceneIcon = qau->GetSceneIcon();
 	_actionScenes->setIcon(sceneIcon);
-	_actionScenes->setText(QT_UTF8(obs_module_text("Scenes")));
-	connect(_actionScenes, SIGNAL(triggered()), this,
-		SLOT(on_actionScenes_triggered()));
-	_actionsToolbar->addAction(_actionScenes);
+	_actionScenes->setDisabled(false);
+	_actionScenes->setAccessibleDescription(
+		"Opens list of all parent scenes");
+	_actionScenes->setAccessibleName("Show Parent Scenes");
+	_actionScenes->setToolTip("Show Parent Scenes");
+	_actionScenes->setStyleSheet("padding: 0px; background: none");
+	connect(_actionScenes, &QPushButton::released, this,
+		&QuickAccessItem::on_actionScenes_triggered);
 
-	SetButtonVisibility();
+	layout->addWidget(_actionProperties);
+	layout->addWidget(_actionFilters);
+	layout->addWidget(_actionScenes);
 
-	// Themes need the QAction dynamic properties
-	for (QAction *x : _actionsToolbar->actions()) {
-		QWidget *temp = _actionsToolbar->widgetForAction(x);
-
-		for (QByteArray &y : x->dynamicPropertyNames()) {
-			temp->setProperty(y, x->property(y));
-		}
-	}
-	layout->addWidget(_actionsToolbar);
 	setLayout(layout);
+	SetButtonVisibility();
 }
 
 void QuickAccessItem::SetButtonVisibility()
@@ -135,17 +125,6 @@ void QuickAccessItem::SetButtonVisibility()
 	_actionProperties->setVisible(_configurable && _dock->ShowProperties());
 	_actionFilters->setVisible(_dock->ShowFilters());
 	_actionScenes->setVisible(_dock->ShowScenes());
-
-	// Refresh Toolbar Styling
-	for (auto x : _actionsToolbar->actions()) {
-		auto widget = _actionsToolbar->widgetForAction(x);
-
-		if (!widget) {
-			continue;
-		}
-		widget->style()->unpolish(widget);
-		widget->style()->polish(widget);
-	}
 }
 
 const char *QuickAccessItem::GetSourceName()
@@ -160,7 +139,9 @@ QuickAccessItem::~QuickAccessItem()
 {
 	delete _label;
 	delete _iconLabel;
-	delete _actionsToolbar;
+	delete _actionProperties;
+	delete _actionFilters;
+	delete _actionScenes;
 	_clearSceneItems();
 	obs_weak_source_release(_source);
 }
@@ -352,9 +333,16 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	_sourceList->setFrameShape(QFrame::NoFrame);
 	_sourceList->setFrameShadow(QFrame::Plain);
 	_sourceList->setProperty("showDropIndicator", QVariant(true));
-	_sourceList->setDragEnabled(_dock->GetType() == "Manual");
-	_sourceList->setDragDropMode(QAbstractItemView::InternalMove);
-	_sourceList->setDefaultDropAction(Qt::TargetMoveAction);
+	if (_dock->GetType() == "Manual") {
+		_sourceList->setDragEnabled(true);
+		_sourceList->setDragDropMode(QAbstractItemView::InternalMove);
+		_sourceList->setDefaultDropAction(Qt::TargetMoveAction);
+	} else {
+		_sourceList->setDragEnabled(false);
+		_sourceList->setDragDropMode(QAbstractItemView::NoDragDrop);
+		_sourceList->viewport()->setAcceptDrops(false);
+	}
+
 	connect(_sourceList, SIGNAL(itemSelectionChanged()), this,
 		SLOT(on_sourceList_itemSelectionChanged()));
 
