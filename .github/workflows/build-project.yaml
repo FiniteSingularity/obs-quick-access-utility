@@ -285,7 +285,7 @@ jobs:
 
   windows-package:
     name: Package Windows (no signing) 📀
-    if: github.event_name == 'push'
+    if: github.event_name == 'pull_request'
     runs-on: windows-2022
     needs: windows-build
     steps:
@@ -341,7 +341,7 @@ jobs:
 
   windows-package-signed:
     name: Package Windows (signed) 📀
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'push'
     runs-on: [self-hosted]
     needs: windows-build
     steps:
