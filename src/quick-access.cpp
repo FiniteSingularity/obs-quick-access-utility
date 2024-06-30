@@ -766,6 +766,7 @@ void QuickAccess::on_actionRemoveSource_triggered()
 	auto item = _sourceList->currentItem();
 	if (!item)
 		return;
+	_sourceList->setCurrentItem(nullptr);
 	_sourceList->removeItemWidget(item);
 	delete item;
 }
@@ -832,11 +833,15 @@ void QuickAccess::updateEnabled()
 
 void QuickAccess::on_sourceList_itemSelectionChanged()
 {
+	auto item = _sourceList->currentItem();
+	if (item == nullptr) {
+		return;
+	}
 	if (_dock->GetType() == "Manual") {
 		updateEnabled();
 	}
 	if (_dock->ClickableScenes()) {
-		auto item = _sourceList->currentItem();
+
 		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
 			_sourceList->itemWidget(item));
 		widget->SwitchToScene();
