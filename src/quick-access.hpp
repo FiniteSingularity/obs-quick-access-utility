@@ -72,10 +72,9 @@ private:
 	QLabel *_label = nullptr;
 	QLabel *_iconLabel = nullptr;
 
-	QToolBar *_actionsToolbar = nullptr;
-	QAction *_actionProperties = nullptr;
-	QAction *_actionFilters = nullptr;
-	QAction *_actionScenes = nullptr;
+	QPushButton *_actionProperties = nullptr;
+	QPushButton *_actionFilters = nullptr;
+	QPushButton *_actionScenes = nullptr;
 
 	QPushButton *_filters = nullptr;
 	obs_weak_source_t *_source = nullptr;

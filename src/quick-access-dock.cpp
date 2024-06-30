@@ -22,6 +22,7 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData)
 	_clickableScenes = obs_data_get_bool(obsData, "clickable_scenes");
 
 	_widget = new QuickAccess(this, this, "quick_access_widget");
+	setMinimumWidth(200);
 	auto l = new QVBoxLayout;
 	l->setContentsMargins(0, 0, 0, 0);
 	l->addWidget(_widget);
