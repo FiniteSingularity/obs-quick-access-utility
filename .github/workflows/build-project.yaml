@@ -318,9 +318,11 @@ jobs:
           $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
           $ProductName = $BuildSpec.name
           $ProductVersion = $BuildSpec.version
+          $ShortSha = "${{ github.sha }}".SubString(0, 9)
 
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
+          "shortSha=${ShortSha}" >> $env:GITHUB_OUTPUT
       - name: Compress Plug-In
         if: success()
         run: |
@@ -332,7 +334,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ github.sha.SubString(0, 9) }}"
+          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ steps.setup.outputs.shortSha }}"
           path: archive/*
       - name: Remove temp artifacts
         uses: geekyeggo/delete-artifact@v2.0.0
