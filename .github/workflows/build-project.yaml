@@ -325,12 +325,6 @@ jobs:
         if: success()
         run: |
           Compress-Archive -Path package/* -Destination "archive/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64.zip"
-      # - name: Publish zip
-      #   if: success()
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
-      #     path: package/*
       - name: "Package Installer (Compile)"
         run: |
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /O".\archive" /F"${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer" /Qp ".\installer.iss"
@@ -338,7 +332,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}"
+          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ github.sha.SubString(0, 9) }}"
           path: archive/*
       - name: Remove temp artifacts
         uses: geekyeggo/delete-artifact@v2.0.0
