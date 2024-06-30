@@ -347,6 +347,10 @@ jobs:
     runs-on: [self-hosted]
     needs: windows-build
     steps:
+      - name: Setup Directories
+        run: |
+          mkdir ./package
+          mkdir ./archive
       - name: Retrieve Build
         uses: actions/download-artifact@v4
         with:
@@ -364,9 +368,6 @@ jobs:
           if ( $Env:RUNNER_DEBUG -ne $null ) {
             Set-PSDebug -Trace 1
           }
-
-          mkdir ./package
-          mkdir ./archive
 
           $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
           $ProductName = $BuildSpec.name
