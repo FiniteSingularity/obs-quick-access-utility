@@ -105,6 +105,7 @@ function Build {
     Copy-Item -Path "${ProjectRoot}/release/${Configuration}/*" -Destination "/package" -Recurse
     Copy-Item -Path "${ProjectRoot}/build_${Target}/installer-Windows.generated.iss" -Destination "/installer/installer.iss"
     Copy-Item -Path "${Projectroot}/LICENSE" -Destination "/installer"
+    Copy-Item -Path "${Projectroot}/buildspec.json" -Destination "/installer"
 
     Pop-Location -Stack BuildTemp
     Log-Group
