@@ -451,8 +451,8 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 					QSizePolicy::Minimum));
 
 	if (_dock->GetType() == "Dynamic") {
-		obs_frontend_add_event_callback(
-			QuickAccess::SceneChangeCallback, this);
+		QuickAccess::SceneChangeCallback(OBS_FRONTEND_EVENT_SCENE_CHANGED, this);
+		obs_frontend_add_event_callback(QuickAccess::SceneChangeCallback, this);
 	}
 }
 
