@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QToolBar>
 #include <QHBoxLayout>
+
 #include <vector>
 #include <set>
 
@@ -135,6 +136,7 @@ private:
 	void _ClearMenuSources();
 	void _LoadDynamicScenes();
 	std::vector<obs_source_t *> _menuSources;
+	std::vector<std::string> _manualSourceNames;
 	std::vector<std::string> _allSourceNames;
 	std::set<std::string> _dynamicScenes;
 	bool _active = true;
