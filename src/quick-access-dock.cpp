@@ -64,6 +64,13 @@ QuickAccessDock::~QuickAccessDock()
 	}
 }
 
+void QuickAccessDock::CleanupSourceHandlers()
+{
+	if (_widget) {
+		_widget->CleanupSourceHandlers();
+	}
+}
+
 void QuickAccessDock::SetItemsButtonVisibility()
 {
 	if (_widget) {

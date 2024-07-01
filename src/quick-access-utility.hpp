@@ -36,7 +36,7 @@ public:
 
 	void Load(obs_data_t *data);
 	void Save(obs_data_t *data);
-	void RemoveDock(int idx);
+	void RemoveDock(int idx, bool cleanup = false);
 	void RemoveDocks();
 	inline std::vector<QuickAccessDock *> GetDocks() { return _docks; }
 

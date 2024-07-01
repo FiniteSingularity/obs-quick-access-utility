@@ -455,6 +455,20 @@ QuickAccess::~QuickAccess()
 	if (_current) {
 		obs_weak_source_release(_current);
 	}
+	source_signal_handler = nullptr;
+}
+
+void QuickAccess::CleanupSourceHandlers()
+{
+	if (source_signal_handler) {
+		signal_handler_disconnect(source_signal_handler,
+			"item_add",
+			QuickAccess::ItemAddedToScene,
+			this);
+		signal_handler_disconnect(
+			source_signal_handler, "item_remove",
+			QuickAccess::ItemRemovedFromScene, this);
+	}
 }
 
 void QuickAccess::SceneChangeCallback(enum obs_frontend_event event, void *data)
@@ -472,6 +486,9 @@ void QuickAccess::SceneChangeCallback(enum obs_frontend_event event, void *data)
 				QuickAccess::ItemRemovedFromScene, qa);
 		}
 		obs_source_t *current = obs_frontend_get_current_scene();
+		if (qa->_current) {
+			obs_weak_source_release(qa->_current);
+		}
 		qa->_current = obs_source_get_weak_source(current);
 		qa->source_signal_handler =
 			obs_source_get_signal_handler(current);
