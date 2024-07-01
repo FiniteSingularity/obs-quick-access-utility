@@ -105,6 +105,7 @@ public:
 	void AddSourceMenuItem(obs_source_t *source);
 	void SetItemsButtonVisibility();
 	void updateEnabled();
+	void CleanupSourceHandlers();
 
 	static bool AddSourceName(void *data, obs_source_t *source);
 

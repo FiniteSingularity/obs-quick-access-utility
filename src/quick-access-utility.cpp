@@ -61,9 +61,12 @@ obs_module_t *QuickAccessUtility::GetModule()
 	return _module;
 }
 
-void QuickAccessUtility::RemoveDock(int idx)
+void QuickAccessUtility::RemoveDock(int idx, bool cleanup)
 {
 	auto dock = _docks.at(idx);
+	if (cleanup) {
+		dock->CleanupSourceHandlers();
+	}
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
 	obs_frontend_remove_dock(
 		("quick-access-dock_" + dock->GetId()).c_str());
@@ -142,7 +145,7 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 	UNUSED_PARAMETER(data);
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED ||
 	    event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-		blog(LOG_INFO, "QAU::Scene Collection Changed/Finshed Loading");
+		blog(LOG_INFO, "QAU::Scene Collection Changed/Finished Loading");
 		signal_handler_connect_ref(obs_get_signal_handler(),
 					   "source_create",
 					   QuickAccessUtility::SourceCreated,
@@ -206,6 +209,7 @@ void QuickAccessUtility::CreateDock(CreateDockFormData data)
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	auto dock = new QuickAccessDock(mainWindow, dockData);
 	_docks.push_back(dock);
+	obs_data_array_release(sourcesArray);
 	obs_data_release(dockData);
 
 	if (mainWindowOpen) {
@@ -425,7 +429,7 @@ void QuickAccessUtilityDialog::on_actionAddDock_triggered()
 void QuickAccessUtilityDialog::on_actionRemoveDock_triggered()
 {
 	auto idx = _dockList->currentRow();
-	qau->RemoveDock(idx);
+	qau->RemoveDock(idx, true);
 	LoadDockList();
 }
 
