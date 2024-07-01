@@ -10,6 +10,7 @@
 #include <QListWidget>
 #include <QWidgetAction>
 #include <QLineEdit>
+#include <algorithm>
 #include "version.h"
 
 #define QT_UTF8(str) QString::fromUtf8(str)
@@ -461,13 +462,11 @@ QuickAccess::~QuickAccess()
 void QuickAccess::CleanupSourceHandlers()
 {
 	if (source_signal_handler) {
-		signal_handler_disconnect(source_signal_handler,
-			"item_add",
-			QuickAccess::ItemAddedToScene,
-			this);
-		signal_handler_disconnect(
-			source_signal_handler, "item_remove",
-			QuickAccess::ItemRemovedFromScene, this);
+		signal_handler_disconnect(source_signal_handler, "item_add",
+					  QuickAccess::ItemAddedToScene, this);
+		signal_handler_disconnect(source_signal_handler, "item_remove",
+					  QuickAccess::ItemRemovedFromScene,
+					  this);
 	}
 }
 
@@ -694,6 +693,13 @@ void QuickAccess::_ClearMenuSources()
 
 QMenu *QuickAccess::CreateAddSourcePopupMenu()
 {
+	_manualSourceNames.clear();
+	for (int i = 0; i < _sourceList->count(); ++i) {
+		QListWidgetItem *widgetItem = _sourceList->item(i);
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(widgetItem));
+		_manualSourceNames.push_back(widget->GetSourceName());
+	}
 	QMenu *popup = new QMenu("Add", this);
 	auto wa = new QWidgetAction(popup);
 	auto t = new QLineEdit;
@@ -746,8 +752,15 @@ QMenu *QuickAccess::CreateAddSourcePopupMenu()
 		return true;
 	};
 
+	// Check to see if source is already in manual dock, and
+	// skip if it is.
 	for (auto &src : _menuSources) {
-		addSource(popup, src);
+		if (std::find(_manualSourceNames.begin(),
+			      _manualSourceNames.end(),
+			      std::string(obs_source_get_name(src))) ==
+		    _manualSourceNames.end()) {
+			addSource(popup, src);
+		}
 	}
 	_ClearMenuSources();
 	return popup;
