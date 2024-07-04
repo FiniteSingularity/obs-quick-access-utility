@@ -13,6 +13,8 @@
 #include <QApplication>
 #include <QThread>
 #include <QMetaObject>
+#include <QScrollArea>
+#include <QDialog>
 
 #include <algorithm>
 #include "version.h"
@@ -236,7 +238,8 @@ bool QuickAccessItem::IsNullSource()
 
 QMenu *QuickAccessItem::_CreateSceneMenu()
 {
-	QMenu *popup = new QMenu("SceneMenu", this);
+	QMenu* popup = new QMenu("SceneMenu", this);
+
 	auto wa = new QWidgetAction(popup);
 	auto t = new QLineEdit;
 	t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
@@ -705,53 +708,96 @@ void QuickAccess::_ClearMenuSources()
 	_menuSources.clear();
 }
 
-QMenu *QuickAccess::CreateAddSourcePopupMenu()
+QDialog *QuickAccess::CreateAddSourcePopupMenu()
 {
-	_manualSourceNames.clear();
-	for (int i = 0; i < _sourceList->count(); ++i) {
-		QListWidgetItem *widgetItem = _sourceList->item(i);
-		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
-			_sourceList->itemWidget(widgetItem));
-		_manualSourceNames.push_back(widget->GetSourceName());
-	}
-	QMenu *popup = new QMenu("Add", this);
-	auto wa = new QWidgetAction(popup);
-	auto t = new QLineEdit;
-	t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
-		foreach(auto action, popup->actions()) action->setVisible(
-			action->text().isEmpty() ||
-			action->text().contains(text, Qt::CaseInsensitive));
-	});
-	wa->setDefaultWidget(t);
-	popup->addAction(wa);
+	QDialog* popup = new QDialog(this);
+	std::string title = "Add Sources to " + _dock->GetName();
+	popup->setWindowTitle(title.c_str());
+	QVBoxLayout* layoutV = new QVBoxLayout();
+	QHBoxLayout* layoutH = new QHBoxLayout();
+	QVBoxLayout* allSourcesLayout = new QVBoxLayout();
+	QLabel* allSourcesLabel = new QLabel();
+	allSourcesLabel->setText("Available Sources");
+
+	QLineEdit* searchText = new QLineEdit();
+	searchText->setPlaceholderText("Search...");
+
 	// MenuSources *should* be empty, but just in case
 	_ClearMenuSources();
 	obs_enum_sources(AddSourceToWidget, this);
 	obs_enum_scenes(AddSourceToWidget, this);
+	QListWidget* allSourcesList = new QListWidget(this);
 
-	auto getActionAfter = [](QMenu *menu, const QString &name) {
-		QList<QAction *> actions = menu->actions();
+	searchText->connect(
+		searchText, &QLineEdit::textChanged,
+		[allSourcesList](const QString text) {
+			blog(LOG_INFO, "=== Search List Size: %i", allSourcesList->count());
+			for (int i = 0; i < allSourcesList->count(); i++) {
+				QListWidgetItem* item = allSourcesList->item(i);
+				QString wName = item->text();
+				item->setHidden(text.isEmpty() || !wName.contains(text, Qt::CaseInsensitive));
+			}
+		});
 
-		for (QAction *menuAction : actions) {
-			if (menuAction->text().compare(
-				    name, Qt::CaseInsensitive) >= 0)
-				return menuAction;
+	allSourcesLayout->addWidget(allSourcesLabel);
+	allSourcesLayout->addWidget(searchText);
+	allSourcesLayout->addWidget(allSourcesList);
+	layoutH->addLayout(allSourcesLayout);
+
+	QVBoxLayout* addRemoveButtonsLayout = new QVBoxLayout();
+	QPushButton* addButton = new QPushButton();
+	addButton->setText("→");
+	addButton->setDisabled(true);
+	QPushButton* removeButton = new QPushButton();
+	removeButton->setText("←");
+	removeButton->setDisabled(true);
+	addRemoveButtonsLayout->addWidget(addButton);
+	addRemoveButtonsLayout->addWidget(removeButton);
+	layoutH->addLayout(addRemoveButtonsLayout);
+
+	QLabel* dockSourcesLabel = new QLabel();
+	dockSourcesLabel->setText("Sources To Add");
+	QVBoxLayout* dockSourcesLayout = new QVBoxLayout();
+	QListWidget* dockSourcesList = new QListWidget();
+	dockSourcesLayout->addWidget(dockSourcesLabel);
+	dockSourcesLayout->addWidget(dockSourcesList);
+	layoutH->addLayout(dockSourcesLayout);
+
+	layoutV->addLayout(layoutH);
+	QHBoxLayout* buttonBar = new QHBoxLayout();
+	QWidget* spacer = new QWidget();
+	QPushButton* saveButton = new QPushButton();
+	saveButton->setText("Add Sources");
+	QPushButton* cancelButton = new QPushButton();
+	cancelButton->setText("Cancel");
+	buttonBar->addWidget(spacer);
+	buttonBar->addWidget(saveButton);
+	buttonBar->addWidget(cancelButton);
+	layoutV->addLayout(buttonBar);
+	popup->setLayout(layoutV);
+
+
+	auto getItemInsert = [](QListWidget *list, const QString &name) {
+		for (int i = 0; i < list->count(); i++) {
+			auto item = list->item(i);
+			auto cmp = item->text().compare(name, Qt::CaseInsensitive);
+			if (cmp > 0)
+				return i;
+			else if (cmp == 0)
+				return -1;
 		}
 
-		return (QAction *)nullptr;
+		return list->count();
 	};
 
-	auto addSource = [this, getActionAfter](QMenu *pop,
+	auto addSource = [getItemInsert](QListWidget *list,
 						obs_source_t *source) {
-		const char *name = obs_source_get_name(source);
-		const char *type = obs_source_get_unversioned_id(source);
+		const char* name = obs_source_get_name(source);
+		const char* type = obs_source_get_unversioned_id(source);
 		QString qname = name;
-		QAction *popupItem = new QAction(qname, this);
-		connect(popupItem, &QAction::triggered,
-			[this, name]() { AddSource(name); });
-
+		QListWidgetItem* row = new QListWidgetItem(name);
 		QIcon icon;
-
+		
 		if (strcmp(type, "scene") == 0)
 			icon = qau->GetSceneIcon();
 		else if (strcmp(type, "group") == 0)
@@ -759,38 +805,101 @@ QMenu *QuickAccess::CreateAddSourcePopupMenu()
 		else
 			icon = qau->GetIconFromType(type);
 
-		popupItem->setIcon(icon);
+		row->setIcon(icon);
+		auto insertIdx = getItemInsert(list, qname);
 
-		QAction *after = getActionAfter(pop, qname);
-		pop->insertAction(after, popupItem);
+		if(insertIdx >= 0)
+			list->insertItem(insertIdx, row);
 		return true;
 	};
 
-	// Check to see if source is already in manual dock, and
-	// skip if it is.
-	for (auto &src : _menuSources) {
+	_manualSourceNames.clear();
+	for (int i = 0; i < _sourceList->count(); i++) {
+		auto item = _sourceList->item(i);
+		auto widget = dynamic_cast<QuickAccessItem*>(
+			_sourceList->itemWidget(item));
+		const char* sourceName = widget->GetSourceName();
+		_manualSourceNames.push_back(sourceName);
+	}
+
+	for (auto& src : _menuSources) {
 		if (std::find(_manualSourceNames.begin(),
-			      _manualSourceNames.end(),
-			      std::string(obs_source_get_name(src))) ==
-		    _manualSourceNames.end()) {
-			addSource(popup, src);
+			_manualSourceNames.end(),
+			std::string(obs_source_get_name(src))) ==
+			_manualSourceNames.end()) {
+			addSource(allSourcesList, src);
 		}
 	}
 	_ClearMenuSources();
+
+	connect(allSourcesList, &QListWidget::itemSelectionChanged, popup, [allSourcesList, addButton, removeButton, dockSourcesList]() {
+		auto selectedItem = allSourcesList->currentItem();
+		if (selectedItem) {
+			addButton->setDisabled(false);
+			removeButton->setDisabled(true);
+			dockSourcesList->clearSelection();
+		}
+		else {
+			addButton->setDisabled(true);
+		}
+	});
+
+	connect(dockSourcesList, &QListWidget::itemSelectionChanged, popup, [allSourcesList, addButton, removeButton, dockSourcesList]() {
+		auto selectedItem = allSourcesList->currentItem();
+		if (selectedItem) {
+			addButton->setDisabled(true);
+			removeButton->setDisabled(false);
+			allSourcesList->clearSelection();
+		}
+		else {
+			removeButton->setDisabled(true);
+		}
+	});
+
+	connect(addButton, &QPushButton::released, popup, [addButton, allSourcesList, dockSourcesList]() {
+		auto selectedItem = allSourcesList->takeItem(allSourcesList->currentRow());
+		dockSourcesList->addItem(selectedItem);
+		allSourcesList->clearSelection();
+		addButton->setDisabled(true);
+	});
+
+	connect(removeButton, &QPushButton::released, popup, [removeButton, allSourcesList, dockSourcesList, getItemInsert]() {
+		auto selectedItem = dockSourcesList->takeItem(dockSourcesList->currentRow());
+		auto insertIdx = getItemInsert(allSourcesList, selectedItem->text());
+		allSourcesList->insertItem(insertIdx, selectedItem);
+		dockSourcesList->clearSelection();
+		removeButton->setDisabled(true);
+	});
+
+	connect(cancelButton, &QPushButton::released, popup, [popup]() {
+		popup->reject();
+	});
+
+	connect(saveButton, &QPushButton::released, popup, [this, popup, dockSourcesList]() {
+		for (int i = 0; i < dockSourcesList->count(); i++) {
+			auto item = dockSourcesList->item(i);
+			auto sceneName = item->text();
+			std::string sceneNameStr = sceneName.toStdString();
+			AddSourceAtIndex(sceneNameStr.c_str(), i);
+		}
+		popup->accept();
+	});
+
 	return popup;
 }
 
-void QuickAccess::AddSourcePopupMenu(const QPoint &pos)
+void QuickAccess::AddSourcePopupMenu()
 {
-	QScopedPointer<QMenu> popup(CreateAddSourcePopupMenu());
+	QScopedPointer<QDialog> popup(CreateAddSourcePopupMenu());
 	if (popup) {
-		popup->exec(pos);
+		popup->setModal(true);
+		popup->exec();
 	}
 }
 
 void QuickAccess::on_actionAddSource_triggered()
 {
-	AddSourcePopupMenu(QCursor::pos());
+	AddSourcePopupMenu();
 }
 
 void QuickAccess::on_actionRemoveSource_triggered()
