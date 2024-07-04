@@ -10,6 +10,10 @@
 #include <QListWidget>
 #include <QWidgetAction>
 #include <QLineEdit>
+#include <QApplication>
+#include <QThread>
+#include <QMetaObject>
+
 #include <algorithm>
 #include "version.h"
 
@@ -353,6 +357,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_searchText->connect(
 			_searchText, &QLineEdit::textChanged,
 			[this](const QString text) {
+				blog(LOG_INFO, "=== Search List Size: %i", _sourceList->count());
 				for (int i = 0; i < _sourceList->count(); i++) {
 					QListWidgetItem *item =
 						_sourceList->item(i);
@@ -360,12 +365,15 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 						dynamic_cast<QuickAccessItem *>(
 							_sourceList->itemWidget(
 								item));
-					QString wName = widget->GetSourceName();
-					item->setHidden(
-						text.isEmpty() ||
-						!wName.contains(
-							text,
-							Qt::CaseInsensitive));
+					if (widget) {
+						QString wName = widget->GetSourceName();
+						item->setHidden(
+							text.isEmpty() ||
+							!wName.contains(
+								text,
+								Qt::CaseInsensitive));
+					}
+
 				}
 			});
 		layout->addWidget(_searchText);
@@ -570,7 +578,9 @@ void QuickAccess::ItemAddedToScene(void *data, calldata_t *params)
 	blog(LOG_INFO, "Item added to scene");
 	UNUSED_PARAMETER(params);
 	QuickAccess *qa = static_cast<QuickAccess *>(data);
-	qa->_LoadDynamicScenes();
+	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), [qa]() {
+		qa->_LoadDynamicScenes();
+	});
 }
 
 void QuickAccess::ItemRemovedFromScene(void *data, calldata_t *params)
@@ -578,9 +588,11 @@ void QuickAccess::ItemRemovedFromScene(void *data, calldata_t *params)
 	QuickAccess *qa = static_cast<QuickAccess *>(data);
 	blog(LOG_INFO, "Item removed from scene");
 	UNUSED_PARAMETER(params);
-	if (qa->_active) {
-		qa->_LoadDynamicScenes();
-	}
+	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), [qa]() {
+		if (qa->_active) {
+			qa->_LoadDynamicScenes();
+		}
+	});
 }
 
 void QuickAccess::Save(obs_data_t *saveObj)
@@ -626,6 +638,7 @@ void QuickAccess::Load(obs_data_t *loadObj)
 void QuickAccess::LoadAllSources()
 {
 	_allSourceNames.clear();
+	_sourceList->clear();
 	obs_enum_sources(QuickAccess::AddSourceName, this);
 	obs_enum_scenes(QuickAccess::AddSourceName, this);
 	for (auto &name : _allSourceNames) {
@@ -871,14 +884,23 @@ void QuickAccess::RemoveNullSources()
 	if (!_active) {
 		return;
 	}
-	for (int i = 0; i < _sourceList->count(); i++) {
+	blog(LOG_INFO, "SIZE OF LIST BEFORE: %i", _sourceList->count());
+	std::vector<QListWidgetItem*> toDelete;
+	for(int i = 0; i < _sourceList->count(); i++) {
 		QListWidgetItem *item = _sourceList->item(i);
 		auto widget = dynamic_cast<QuickAccessItem *>(
 			_sourceList->itemWidget(item));
 		if (widget && widget->IsNullSource()) {
-			delete item;
+			toDelete.push_back(item);
 		}
 	}
+	for (auto& item : toDelete) {
+		_sourceList->removeItemWidget(item);
+		_sourceList->takeItem(_sourceList->row(item));
+		delete item;
+	}
+	_sourceList->update();
+	blog(LOG_INFO, "SIZE OF LIST AFTER: %i", _sourceList->count());
 }
 
 QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
