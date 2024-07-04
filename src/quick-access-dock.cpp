@@ -185,16 +185,23 @@ void QuickAccessDock::Save(obs_data_t *obsData)
 void QuickAccessDock::SourceCreated(obs_source_t *source)
 {
 	UNUSED_PARAMETER(source);
+	if (!_widget) {
+		return;
+	}
 	if (_dockType == "Source Search") {
+		_widget->LoadAllSources();
 	}
 }
 
 void QuickAccessDock::SourceDestroyed()
 {
 	// Dynamic sources are handled from scene item add/delete events
-	if (_dockType != "Dynamic" && !_switchingSC) {
-		if (_widget) {
-			_widget->RemoveNullSources();
-		}
+	if (_switchingSC || !_widget) {
+		return;
+	}
+	if (_dockType == "Manual") {
+		_widget->RemoveNullSources();
+	} else if (_dockType != "Dynamic") {
+		_widget->LoadAllSources();
 	}
 }
