@@ -474,75 +474,66 @@ QuickAccess::~QuickAccess()
 void QuickAccess::CleanupSourceHandlers()
 {
 	if (source_signal_handler) {
+		blog(LOG_INFO, "QuickAccess::CleanupSourceHandlers()");
 		signal_handler_disconnect(source_signal_handler, "item_add",
 					  QuickAccess::ItemAddedToScene, this);
 		signal_handler_disconnect(source_signal_handler, "item_remove",
 					  QuickAccess::ItemRemovedFromScene,
 					  this);
+		source_signal_handler = nullptr;
 	}
 }
 
 void QuickAccess::SceneChangeCallback(enum obs_frontend_event event, void *data)
 {
-	if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
-		QuickAccess *qa = static_cast<QuickAccess *>(data);
-		blog(LOG_INFO, "SCENE CHANGE!");
-		if (qa->source_signal_handler) {
-			signal_handler_disconnect(qa->source_signal_handler,
-						  "item_add",
-						  QuickAccess::ItemAddedToScene,
-						  qa);
-			signal_handler_disconnect(
-				qa->source_signal_handler, "item_remove",
-				QuickAccess::ItemRemovedFromScene, qa);
-		}
-		obs_source_t *current = obs_frontend_get_current_scene();
-		if (qa->_current) {
-			obs_weak_source_release(qa->_current);
-		}
-		qa->_current = obs_source_get_weak_source(current);
-		qa->source_signal_handler =
-			obs_source_get_signal_handler(current);
-		signal_handler_connect(qa->source_signal_handler, "item_add",
-				       QuickAccess::ItemAddedToScene, qa);
-		signal_handler_connect(qa->source_signal_handler, "item_remove",
-				       QuickAccess::ItemRemovedFromScene, qa);
-		obs_source_release(current);
-		qa->_LoadDynamicScenes();
-	} else if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-		blog(LOG_INFO, "FINISHED LOADING...");
-		// Load the scene list if is a search bar.
-		QuickAccess *qa = static_cast<QuickAccess *>(data);
-		qa->_active = true;
-	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
-		blog(LOG_INFO, "EXITING...");
-		QuickAccess *qa = static_cast<QuickAccess *>(data);
-		qa->_active = false;
-	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-		QuickAccess *qa = static_cast<QuickAccess *>(data);
-		qa->_dock->SwitchingSceneCollections(true);
-		qa->_active = false;
-		if (qa->source_signal_handler) {
-			signal_handler_disconnect(qa->source_signal_handler,
-						  "item_add",
-						  QuickAccess::ItemAddedToScene,
-						  qa);
-			signal_handler_disconnect(
-				qa->source_signal_handler, "item_remove",
-				QuickAccess::ItemRemovedFromScene, qa);
-		}
-	}
+	QuickAccess* qa = static_cast<QuickAccess*>(data);
+	QMetaObject::invokeMethod(
+		QCoreApplication::instance()->thread(),
+		[qa, event]() {
+			if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
+				blog(LOG_INFO, "SCENE CHANGE!");
+				qa->CleanupSourceHandlers();
+				obs_source_t* current = obs_frontend_get_current_scene();
+				if (qa->_current) {
+					obs_weak_source_release(qa->_current);
+				}
+				qa->_current = obs_source_get_weak_source(current);
+				qa->source_signal_handler =
+					obs_source_get_signal_handler(current);
+				signal_handler_connect(qa->source_signal_handler, "item_add",
+					QuickAccess::ItemAddedToScene, qa);
+				signal_handler_connect(qa->source_signal_handler, "item_remove",
+					QuickAccess::ItemRemovedFromScene, qa);
+				obs_source_release(current);
+				qa->_LoadDynamicScenes();
+			}
+			else if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+				blog(LOG_INFO, "FINISHED LOADING...");
+				// Load the scene list if is a search bar.
+				qa->_active = true;
+			}
+			else if (event == OBS_FRONTEND_EVENT_EXIT) {
+				blog(LOG_INFO, "EXITING...");
+				qa->_active = false;
+			}
+			else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
+				blog(LOG_INFO, "SCENE COLLECTION CHANGING");
+				qa->_dock->SwitchingSceneCollections(true);
+				qa->_active = false;
+				qa->CleanupSourceHandlers();
+			}
+		});
 }
 
 void QuickAccess::_LoadDynamicScenes()
 {
-	if (!_active) {
+	if (!_active || !_sourceList) {
 		return;
 	}
 	_dynamicScenes.clear();
 	_sourceList->clear();
 
-	obs_source_t *current = obs_weak_source_get_source(_current);
+	obs_source_t* current = obs_weak_source_get_source(_current);
 	obs_scene_t *currentScene = obs_scene_from_source(current);
 	obs_scene_enum_items(currentScene, QuickAccess::DynAddSceneItems, this);
 	for (auto &sceneName : _dynamicScenes) {

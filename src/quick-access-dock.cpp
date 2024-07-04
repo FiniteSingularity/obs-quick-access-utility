@@ -59,6 +59,7 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData)
 
 QuickAccessDock::~QuickAccessDock()
 {
+	blog(LOG_INFO, "QuickAccessDock::~QuickAccessDock()");
 	if (_dockWidget) {
 		delete _dockWidget;
 	}

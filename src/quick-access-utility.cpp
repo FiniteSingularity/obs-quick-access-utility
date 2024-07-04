@@ -34,6 +34,7 @@ QuickAccessUtility::QuickAccessUtility(obs_module_t *m)
 
 QuickAccessUtility::~QuickAccessUtility()
 {
+	blog(LOG_INFO, "QuickAccessUtility::~QuickAccessUtility");
 	// Dont need to delete dock pointers, as they are managed by OBS.
 	obs_frontend_remove_event_callback(QuickAccessUtility::FrontendCallback,
 					   this);
@@ -139,7 +140,10 @@ void QuickAccessUtility::Save(obs_data_t *data)
 
 void QuickAccessUtility::RemoveDocks()
 {
-	for (auto &dock : _docks) {
+	for (auto& dock : _docks) {
+		dock->CleanupSourceHandlers();
+	}
+	for (auto& dock : _docks) {
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
 		obs_frontend_remove_dock(
 			("quick-access-dock_" + dock->GetId()).c_str());
@@ -178,16 +182,24 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 					  "source_destroy",
 					  QuickAccessUtility::SourceDestroyed,
 					  qau);
-		qau->RemoveDocks();
-		qau->_sceneCollectionChanging = false;
+		if (qau->_sceneCollectionChanging) {
+			QMetaObject::invokeMethod(
+				QCoreApplication::instance()->thread(), []() {
+					qau->RemoveDocks();
+				});
+			qau->_sceneCollectionChanging = false;
+		}
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
 		blog(LOG_INFO, "QAU::Frontend Exit");
-		QMetaObject::invokeMethod(
-			QCoreApplication::instance()->thread(),
-			[]() { qau->RemoveDocks(); });
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
 		blog(LOG_INFO, "QAU::Scene Collection Changing");
 		qau->_sceneCollectionChanging = true;
+	}
+	else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
+		blog(LOG_INFO, "QAU::SCRIPTING SHUTDOWN");
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[]() { qau->RemoveDocks(); });
 	}
 }
 
