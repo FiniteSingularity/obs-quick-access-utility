@@ -43,14 +43,16 @@ void QuickAccessUtility::SourceCreated(void *data, calldata_t *params)
 {
 	blog(LOG_INFO, "Source Created!");
 	UNUSED_PARAMETER(data);
-	obs_source_t* source_ptr = static_cast<obs_source_t*>(calldata_ptr(params, "source"));
-	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), [source_ptr](){
-		for (auto& dock : qau->_docks) {
-			if (dock) {
-				dock->SourceCreated(source_ptr);
+	obs_source_t *source_ptr =
+		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
+	QMetaObject::invokeMethod(
+		QCoreApplication::instance()->thread(), [source_ptr]() {
+			for (auto &dock : qau->_docks) {
+				if (dock) {
+					dock->SourceCreated(source_ptr);
+				}
 			}
-		}
-	});
+		});
 }
 
 void QuickAccessUtility::SourceDestroyed(void *data, calldata_t *params)
@@ -59,7 +61,7 @@ void QuickAccessUtility::SourceDestroyed(void *data, calldata_t *params)
 	UNUSED_PARAMETER(params);
 	blog(LOG_INFO, "Source Destroyed!");
 	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), []() {
-		for (auto& dock : qau->_docks) {
+		for (auto &dock : qau->_docks) {
 			if (dock) {
 				dock->SourceDestroyed();
 			}
@@ -180,9 +182,9 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		qau->_sceneCollectionChanging = false;
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
 		blog(LOG_INFO, "QAU::Frontend Exit");
-		QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), []() {
-			qau->RemoveDocks();
-		});
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[]() { qau->RemoveDocks(); });
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
 		blog(LOG_INFO, "QAU::Scene Collection Changing");
 		qau->_sceneCollectionChanging = true;

@@ -201,8 +201,7 @@ void QuickAccessDock::SourceDestroyed()
 	}
 	if (_dockType == "Manual") {
 		_widget->RemoveNullSources();
-	}
-	else if (_dockType != "Dynamic") {
+	} else if (_dockType != "Dynamic") {
 		_widget->LoadAllSources();
 	}
 }
