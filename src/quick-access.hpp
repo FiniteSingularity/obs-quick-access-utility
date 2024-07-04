@@ -129,10 +129,10 @@ private:
 	QAction *_actionRemoveSource = nullptr;
 	QAction *_actionSourceUp = nullptr;
 	QAction *_actionSourceDown = nullptr;
-	QMenu *CreateAddSourcePopupMenu();
+	QDialog *CreateAddSourcePopupMenu();
 	obs_weak_source_t *_current = nullptr;
 	signal_handler_t *source_signal_handler = nullptr;
-	void AddSourcePopupMenu(const QPoint &pos);
+	void AddSourcePopupMenu();
 	void _ClearMenuSources();
 	void _LoadDynamicScenes();
 	std::vector<obs_source_t *> _menuSources;
