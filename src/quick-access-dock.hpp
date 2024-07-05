@@ -34,6 +34,7 @@ public:
 
 	void SourceCreated(obs_source_t *source);
 	void SourceDestroyed();
+	void SourceRename(obs_source_t *source);
 	void CleanupSourceHandlers();
 
 private:
