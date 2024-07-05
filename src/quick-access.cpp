@@ -836,6 +836,9 @@ QDialog *QuickAccess::CreateAddSourcePopupMenu()
 	}
 	_ClearMenuSources();
 
+	/*
+	 *  Handle selection changes in lists.
+	 */
 	connect(allSourcesList, &QListWidget::itemSelectionChanged, popup,
 		[allSourcesList, addButton, removeButton, dockSourcesList]() {
 			auto selectedItem = allSourcesList->currentItem();
@@ -860,6 +863,9 @@ QDialog *QuickAccess::CreateAddSourcePopupMenu()
 			}
 		});
 
+	/*
+	 *  Handle Add/Remove button clicks.
+	 */
 	connect(addButton, &QPushButton::released, popup,
 		[addButton, allSourcesList, dockSourcesList]() {
 			auto selectedItem = allSourcesList->takeItem(
@@ -881,6 +887,32 @@ QDialog *QuickAccess::CreateAddSourcePopupMenu()
 			removeButton->setDisabled(true);
 		});
 
+	/*
+	 *  Handle Double-clicking of items in lists.
+	 */
+	connect(allSourcesList, &QListWidget::itemDoubleClicked, popup,
+		[dockSourcesList, allSourcesList,
+		 addButton](QListWidgetItem *item) {
+			allSourcesList->takeItem(allSourcesList->row(item));
+			dockSourcesList->addItem(item);
+			allSourcesList->clearSelection();
+			addButton->setDisabled(true);
+		});
+
+	connect(dockSourcesList, &QListWidget::itemDoubleClicked, popup,
+		[dockSourcesList, allSourcesList, removeButton,
+		 getItemInsert](QListWidgetItem *item) {
+			dockSourcesList->takeItem(dockSourcesList->row(item));
+			auto insertIdx =
+				getItemInsert(allSourcesList, item->text());
+			allSourcesList->insertItem(insertIdx, item);
+			dockSourcesList->clearSelection();
+			removeButton->setDisabled(true);
+		});
+
+	/*
+	 *  Handle Cancel/Save button clicks.
+	 */
 	connect(cancelButton, &QPushButton::released, popup,
 		[popup]() { popup->reject(); });
 
