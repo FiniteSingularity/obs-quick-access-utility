@@ -312,6 +312,10 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	_layout->setSpacing(0);
 	_layout->setContentsMargins(0, 0, 0, 0);
 
+	auto title = new QLabel();
+	title->setText("Edit Dock Options");
+	title->setStyleSheet("QLabel{ font-size: 18pt; padding: 10px; }");
+	_layout->addWidget(title);
 	auto header = new QWidget(this);
 	auto layout = new QHBoxLayout();
 	auto headerLabel = new QLabel();
@@ -319,7 +323,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	layout->setContentsMargins(11, 10, 16, 10);
 	QSizePolicy expandHoriz(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	headerLabel->setSizePolicy(expandHoriz);
-	headerLabel->setText("");
+	headerLabel->setText("Dock");
 	layout->addWidget(headerLabel);
 	header->setLayout(layout);
 
