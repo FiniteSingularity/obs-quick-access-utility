@@ -44,13 +44,13 @@ void QuickAccessUtility::SourceCreated(void *data, calldata_t *params)
 {
 	blog(LOG_INFO, "Source Created!");
 	UNUSED_PARAMETER(data);
-	obs_source_t *source_ptr =
+	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
 	QMetaObject::invokeMethod(
-		QCoreApplication::instance()->thread(), [source_ptr]() {
+		QCoreApplication::instance()->thread(), [source]() {
 			for (auto &dock : qau->_docks) {
 				if (dock) {
-					dock->SourceCreated(source_ptr);
+					dock->SourceCreated(source);
 				}
 			}
 		});
@@ -68,6 +68,25 @@ void QuickAccessUtility::SourceDestroyed(void *data, calldata_t *params)
 			}
 		}
 	});
+}
+
+void QuickAccessUtility::SourceRename(void *data, calldata_t *params)
+{
+	UNUSED_PARAMETER(data);
+	obs_source_t *source =
+		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
+	std::string newName = calldata_string(params, "new_name");
+	std::string prevName = calldata_string(params, "prev_name");
+	QMetaObject::invokeMethod(
+		QCoreApplication::instance()->thread(),
+		[source, newName, prevName]() {
+			for (auto &dock : qau->_docks) {
+				if (dock) {
+					dock->SourceRename(source, newName,
+							   prevName);
+				}
+			}
+		});
 }
 
 obs_module_t *QuickAccessUtility::GetModule()
@@ -172,6 +191,10 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 					   "source_destroy",
 					   QuickAccessUtility::SourceDestroyed,
 					   qau);
+		signal_handler_connect_ref(obs_get_signal_handler(),
+					   "source_rename",
+					   QuickAccessUtility::SourceRename,
+					   qau);
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
 		blog(LOG_INFO, "QAU::Scene Collection Cleanup/Exit");
 		signal_handler_disconnect(obs_get_signal_handler(),
@@ -181,6 +204,10 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		signal_handler_disconnect(obs_get_signal_handler(),
 					  "source_destroy",
 					  QuickAccessUtility::SourceDestroyed,
+					  qau);
+		signal_handler_disconnect(obs_get_signal_handler(),
+					  "source_rename",
+					  QuickAccessUtility::SourceRename,
 					  qau);
 		if (qau->_sceneCollectionChanging) {
 			QMetaObject::invokeMethod(

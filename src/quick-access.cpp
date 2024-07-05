@@ -142,6 +142,12 @@ const char *QuickAccessItem::GetSourceName()
 	return name;
 }
 
+void QuickAccessItem::UpdateLabel()
+{
+	_label->setText(GetSourceName());
+	repaint();
+}
+
 QuickAccessItem::~QuickAccessItem()
 {
 	delete _label;
@@ -1016,6 +1022,19 @@ void QuickAccess::RemoveNullSources()
 	}
 	_sourceList->update();
 	blog(LOG_INFO, "SIZE OF LIST AFTER: %i", _sourceList->count());
+}
+
+void QuickAccess::SourceRename(obs_source_t *source, std::string newName,
+			       std::string prevName)
+{
+	for (int i = 0; i < _sourceList->count(); i++) {
+		QListWidgetItem *item = _sourceList->item(i);
+		auto widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		if (widget && widget->IsSource(source)) {
+			widget->UpdateLabel();
+		}
+	}
 }
 
 QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,

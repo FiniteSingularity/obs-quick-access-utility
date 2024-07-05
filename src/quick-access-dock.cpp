@@ -206,3 +206,13 @@ void QuickAccessDock::SourceDestroyed()
 		_widget->LoadAllSources();
 	}
 }
+
+void QuickAccessDock::SourceRename(obs_source_t *source, std::string newName,
+				   std::string prevName)
+{
+	// Dynamic sources are handled from scene item add/delete events
+	if (_switchingSC || !_widget) {
+		return;
+	}
+	_widget->SourceRename(source, newName, prevName);
+}

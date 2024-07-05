@@ -67,6 +67,7 @@ public:
 	bool IsSource(obs_source_t *s);
 	bool IsNullSource();
 	void SwitchToScene();
+	void UpdateLabel();
 
 private:
 	QuickAccessDock *_dock;
@@ -119,6 +120,8 @@ public:
 	static void ItemRemovedFromScene(void *data, calldata_t *params);
 
 	void RemoveNullSources();
+	void SourceRename(obs_source_t *source, std::string newName,
+			  std::string prevName);
 
 private:
 	QuickAccessDock *_dock;
