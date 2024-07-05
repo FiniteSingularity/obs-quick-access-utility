@@ -75,15 +75,11 @@ void QuickAccessUtility::SourceRename(void *data, calldata_t *params)
 	UNUSED_PARAMETER(data);
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
-	std::string newName = calldata_string(params, "new_name");
-	std::string prevName = calldata_string(params, "prev_name");
 	QMetaObject::invokeMethod(
-		QCoreApplication::instance()->thread(),
-		[source, newName, prevName]() {
+		QCoreApplication::instance()->thread(), [source]() {
 			for (auto &dock : qau->_docks) {
 				if (dock) {
-					dock->SourceRename(source, newName,
-							   prevName);
+					dock->SourceRename(source);
 				}
 			}
 		});

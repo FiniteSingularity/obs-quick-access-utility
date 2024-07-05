@@ -1024,8 +1024,7 @@ void QuickAccess::RemoveNullSources()
 	blog(LOG_INFO, "SIZE OF LIST AFTER: %i", _sourceList->count());
 }
 
-void QuickAccess::SourceRename(obs_source_t *source, std::string newName,
-			       std::string prevName)
+void QuickAccess::SourceRename(obs_source_t *source)
 {
 	for (int i = 0; i < _sourceList->count(); i++) {
 		QListWidgetItem *item = _sourceList->item(i);

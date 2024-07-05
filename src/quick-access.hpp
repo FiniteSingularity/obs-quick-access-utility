@@ -120,8 +120,7 @@ public:
 	static void ItemRemovedFromScene(void *data, calldata_t *params);
 
 	void RemoveNullSources();
-	void SourceRename(obs_source_t *source, std::string newName,
-			  std::string prevName);
+	void SourceRename(obs_source_t *source);
 
 private:
 	QuickAccessDock *_dock;
