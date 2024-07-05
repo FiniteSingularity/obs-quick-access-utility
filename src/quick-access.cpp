@@ -705,7 +705,7 @@ void QuickAccess::_ClearMenuSources()
 QDialog *QuickAccess::CreateAddSourcePopupMenu()
 {
 	QDialog *popup = new QDialog(this);
-	std::string title = "Add Sources to " + _dock->GetName();
+	std::string title = "Add Sources to " + _dock->GetName() + " Dock";
 	popup->setWindowTitle(title.c_str());
 	QVBoxLayout *layoutV = new QVBoxLayout();
 	QHBoxLayout *layoutH = new QHBoxLayout();
