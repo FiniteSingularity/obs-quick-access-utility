@@ -405,39 +405,50 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 
 	_sourceList->setContextMenuPolicy(Qt::ActionsContextMenu);
 
-	_actionCtxtAddCurrent =
-		_sourceList->addAction("Add to Current Scene", this, [this]() {
-			QListWidgetItem *item = _sourceList->currentItem();
-			QuickAccessItem *widget =
-				dynamic_cast<QuickAccessItem *>(
-					_sourceList->itemWidget(item));
-			obs_source_t *sceneSrc =
-				obs_frontend_get_current_scene();
-			widget->AddToScene(sceneSrc);
-			obs_source_release(sceneSrc);
-		});
-	_actionCtxtProperties =
-		_sourceList->addAction("Properties", this, [this]() {
-			QListWidgetItem *item = _sourceList->currentItem();
-			QuickAccessItem *widget =
-				dynamic_cast<QuickAccessItem *>(
-					_sourceList->itemWidget(item));
-			widget->OpenProperties();
-		});
-	_actionCtxtFilters = _sourceList->addAction("Filters", this, [this]() {
+	_actionCtxtAddCurrent = new QAction(_sourceList);
+	_actionCtxtAddCurrent->setText("Add to Current Scene");
+	connect(_actionCtxtAddCurrent, &QAction::triggered, this, [this]() {
+		QListWidgetItem *item = _sourceList->currentItem();
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		obs_source_t *sceneSrc = obs_frontend_get_current_scene();
+		widget->AddToScene(sceneSrc);
+		obs_source_release(sceneSrc);
+	});
+	_sourceList->addAction(_actionCtxtAddCurrent);
+
+	_actionCtxtProperties = new QAction(_sourceList);
+	_actionCtxtProperties->setText("Properties");
+	connect(_actionCtxtProperties, &QAction::triggered, this, [this]() {
+		QListWidgetItem *item = _sourceList->currentItem();
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		widget->OpenProperties();
+	});
+	_sourceList->addAction(_actionCtxtProperties);
+
+	_actionCtxtFilters = new QAction(_sourceList);
+	_actionCtxtFilters->setText("Filters");
+	connect(_actionCtxtFilters, &QAction::triggered, this, [this]() {
 		QListWidgetItem *item = _sourceList->currentItem();
 		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
 			_sourceList->itemWidget(item));
 		widget->OpenFilters();
 	});
+	_sourceList->addAction(_actionCtxtFilters);
+
 	if (_dock->GetType() == "Manual") {
-		_actionCtxtAdd =
-			_sourceList->addAction("Add Sources", this, [this]() {
-				on_actionAddSource_triggered();
-			});
-		_actionCtxtRemoveFromDock = _sourceList->addAction(
-			"Remove From Dock", this,
+		_actionCtxtAdd = new QAction(_sourceList);
+		_actionCtxtAdd->setText("Add Sources");
+		connect(_actionCtxtAdd, &QAction::triggered, this,
+			[this]() { on_actionAddSource_triggered(); });
+		_sourceList->addAction(_actionCtxtAdd);
+
+		_actionCtxtRemoveFromDock = new QAction(_sourceList);
+		_actionCtxtRemoveFromDock->setText("Remove From Dock");
+		connect(_actionCtxtRemoveFromDock, &QAction::triggered, this,
 			[this]() { on_actionRemoveSource_triggered(); });
+		_sourceList->addAction(_actionCtxtRemoveFromDock);
 	}
 
 	std::string dockType = _dock->GetType();
