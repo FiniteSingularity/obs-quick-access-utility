@@ -15,6 +15,7 @@
 #include <QMetaObject>
 #include <QScrollArea>
 #include <QDialog>
+#include <QMouseEvent>
 
 #include <algorithm>
 #include "version.h"
@@ -24,7 +25,9 @@
 
 extern QuickAccessUtility *qau;
 
-QuickAccessList::QuickAccessList(QWidget *parent) : QListWidget(parent)
+QuickAccessList::QuickAccessList(QWidget *parent, QuickAccessDock *dock)
+	: QListWidget(parent),
+	  _dock(dock)
 {
 	_qa = dynamic_cast<QuickAccess *>(parent);
 }
@@ -35,13 +38,27 @@ void QuickAccessList::dropEvent(QDropEvent *event)
 	_qa->updateEnabled();
 }
 
+void QuickAccessList::mousePressEvent(QMouseEvent *event)
+{
+	QListWidget::mousePressEvent(event);
+	if (!indexAt(event->pos()).isValid()) {
+		clearSelection();
+	} else {
+		if (_dock && _dock->ClickableScenes()) {
+			auto item = currentItem();
+			auto widget = dynamic_cast<QuickAccessItem *>(
+				itemWidget(item));
+			widget->SwitchToScene();
+		}
+	}
+}
+
 QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessItem *original)
 	: QFrame(parent),
 	  _dock(original->_dock),
 	  _configurable(false)
 {
 	obs_source_t *source = obs_weak_source_get_source(original->_source);
-	_source = obs_source_get_weak_source(source);
 	_source = obs_source_get_weak_source(source);
 	obs_source_release(source);
 }
@@ -242,6 +259,24 @@ bool QuickAccessItem::IsNullSource()
 	return ret;
 }
 
+void QuickAccessItem::AddToScene(obs_source_t *sceneSrc)
+{
+	obs_source_t *source = GetSource();
+	obs_scene_t *scene = obs_scene_from_source(sceneSrc);
+	obs_scene_add(scene, source);
+	obs_source_release(source);
+}
+
+void QuickAccessItem::OpenFilters()
+{
+	on_actionFilters_triggered();
+}
+
+void QuickAccessItem::OpenProperties()
+{
+	on_actionProperties_triggered();
+}
+
 QMenu *QuickAccessItem::_CreateSceneMenu()
 {
 	QMenu *popup = new QMenu("SceneMenu", this);
@@ -326,8 +361,16 @@ void QuickAccessItem::SwitchToScene()
 	obs_source_release(source);
 }
 
+bool QuickAccessItem::Configurable()
+{
+	obs_source_t *source = obs_weak_source_get_source(_source);
+	bool configurable = obs_source_configurable(source);
+	obs_source_release(source);
+	return configurable;
+}
+
 QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
-	: QListWidget(parent),
+	: QWidget(parent),
 	  _dock(dock)
 {
 	setObjectName(name);
@@ -335,7 +378,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	layout->setSpacing(0);
 	layout->setContentsMargins(0, 0, 0, 0);
 
-	_sourceList = new QuickAccessList(this);
+	_sourceList = new QuickAccessList(this, _dock);
 	_sourceList->setObjectName(QStringLiteral("sources"));
 	QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	sizePolicy.setHorizontalStretch(0);
@@ -360,14 +403,51 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	connect(_sourceList, SIGNAL(itemSelectionChanged()), this,
 		SLOT(on_sourceList_itemSelectionChanged()));
 
-	if (_dock->GetType() == "Source Search") {
+	_sourceList->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+	_actionCtxtAddCurrent =
+		_sourceList->addAction("Add to Current Scene", this, [this]() {
+			QListWidgetItem *item = _sourceList->currentItem();
+			QuickAccessItem *widget =
+				dynamic_cast<QuickAccessItem *>(
+					_sourceList->itemWidget(item));
+			obs_source_t *sceneSrc =
+				obs_frontend_get_current_scene();
+			widget->AddToScene(sceneSrc);
+			obs_source_release(sceneSrc);
+		});
+	_actionCtxtProperties =
+		_sourceList->addAction("Properties", this, [this]() {
+			QListWidgetItem *item = _sourceList->currentItem();
+			QuickAccessItem *widget =
+				dynamic_cast<QuickAccessItem *>(
+					_sourceList->itemWidget(item));
+			widget->OpenProperties();
+		});
+	_actionCtxtFilters = _sourceList->addAction("Filters", this, [this]() {
+		QListWidgetItem *item = _sourceList->currentItem();
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		widget->OpenFilters();
+	});
+	if (_dock->GetType() == "Manual") {
+		_actionCtxtAdd =
+			_sourceList->addAction("Add Sources", this, [this]() {
+				on_actionAddSource_triggered();
+			});
+		_actionCtxtRemoveFromDock = _sourceList->addAction(
+			"Remove From Dock", this,
+			[this]() { on_actionRemoveSource_triggered(); });
+	}
+
+	std::string dockType = _dock->GetType();
+
+	if (dockType == "Source Search" || dockType == "Dynamic") {
 		_searchText = new QLineEdit;
 		_searchText->setPlaceholderText("Search...");
 		_searchText->connect(
 			_searchText, &QLineEdit::textChanged,
-			[this](const QString text) {
-				blog(LOG_INFO, "=== Search List Size: %i",
-				     _sourceList->count());
+			[this, dockType](const QString text) {
 				for (int i = 0; i < _sourceList->count(); i++) {
 					QListWidgetItem *item =
 						_sourceList->item(i);
@@ -379,7 +459,9 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 						QString wName =
 							widget->GetSourceName();
 						item->setHidden(
-							text.isEmpty() ||
+							(text.isEmpty() &&
+							 dockType ==
+								 "Source Search") ||
 							!wName.contains(
 								text,
 								Qt::CaseInsensitive));
@@ -391,12 +473,13 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 
 	layout->addWidget(_sourceList);
 
-	_actionsToolbar = new QToolBar(this);
-	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
-	_actionsToolbar->setIconSize(QSize(16, 16));
-	_actionsToolbar->setFloatable(false);
-
 	if (_dock->GetType() == "Manual") {
+		_actionsToolbar = new QToolBar(this);
+		_actionsToolbar->setObjectName(
+			QStringLiteral("actionsToolbar"));
+		_actionsToolbar->setIconSize(QSize(16, 16));
+		_actionsToolbar->setFloatable(false);
+
 		_actionAddSource = new QAction(this);
 		_actionAddSource->setObjectName(
 			QStringLiteral("actionAddSource"));
@@ -451,11 +534,11 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_actionRemoveSource->setEnabled(false);
 		_actionSourceUp->setEnabled(false);
 		_actionSourceDown->setEnabled(false);
-	}
 
-	layout->addWidget(_actionsToolbar);
-	layout->addItem(new QSpacerItem(150, 0, QSizePolicy::Fixed,
-					QSizePolicy::Minimum));
+		layout->addWidget(_actionsToolbar);
+		layout->addItem(new QSpacerItem(150, 0, QSizePolicy::Fixed,
+						QSizePolicy::Minimum));
+	}
 
 	if (_dock->GetType() == "Dynamic") {
 		QuickAccess::SceneChangeCallback(
@@ -463,6 +546,8 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		obs_frontend_add_event_callback(
 			QuickAccess::SceneChangeCallback, this);
 	}
+
+	on_sourceList_itemSelectionChanged();
 }
 
 QuickAccess::~QuickAccess()
@@ -1017,19 +1102,31 @@ void QuickAccess::updateEnabled()
 
 void QuickAccess::on_sourceList_itemSelectionChanged()
 {
-	auto item = _sourceList->currentItem();
-	if (item == nullptr) {
+	blog(LOG_INFO, "itemSelectionChanged");
+	auto items = _sourceList->selectedItems();
+	auto item = items.count() == 1 ? _sourceList->currentItem() : nullptr;
+	auto widget =
+		dynamic_cast<QuickAccessItem *>(_sourceList->itemWidget(item));
+
+	bool clickItem = !(item == nullptr);
+
+	_actionCtxtFilters->setVisible(clickItem);
+	_actionCtxtProperties->setVisible(clickItem);
+	_actionCtxtFilters->setVisible(clickItem);
+	_actionCtxtAddCurrent->setVisible(clickItem);
+	if (_dock->GetType() == "Manual") {
+		_actionCtxtAdd->setVisible(!clickItem);
+		_actionCtxtRemoveFromDock->setVisible(clickItem);
+	}
+
+	if (!clickItem) {
+		blog(LOG_INFO, "no item selected");
 		return;
 	}
 	if (_dock->GetType() == "Manual") {
 		updateEnabled();
 	}
-	if (_dock->ClickableScenes()) {
-
-		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
-			_sourceList->itemWidget(item));
-		widget->SwitchToScene();
-	}
+	_actionCtxtProperties->setDisabled(!widget->Configurable());
 }
 
 void QuickAccess::RemoveNullSources()

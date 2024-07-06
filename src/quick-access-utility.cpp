@@ -391,7 +391,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 
 	_layout->addWidget(header);
 
-	_dockList = new QuickAccessList(this);
+	_dockList = new QuickAccessList(this, nullptr);
 	_dockList->setObjectName(QStringLiteral("docks"));
 	QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	sizePolicy.setHorizontalStretch(0);
