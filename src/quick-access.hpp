@@ -42,11 +42,13 @@ class QuickAccessList : public QListWidget {
 	Q_OBJECT
 
 public:
-	QuickAccessList(QWidget *parent);
+	QuickAccessList(QWidget *parent, QuickAccessDock *dock);
 	void dropEvent(QDropEvent *event) override;
+	void mousePressEvent(QMouseEvent *event) override;
 
 private:
 	QuickAccess *_qa = nullptr;
+	QuickAccessDock *_dock;
 };
 
 class QuickAccessItem : public QFrame {
@@ -68,6 +70,18 @@ public:
 	bool IsNullSource();
 	void SwitchToScene();
 	void UpdateLabel();
+
+	// Actions
+	void AddToScene(obs_source_t *scene);
+	void OpenFilters();
+	void OpenProperties();
+
+	bool Configurable();
+
+	inline obs_source_t *GetSource()
+	{
+		return obs_weak_source_get_source(_source);
+	}
 
 private:
 	QuickAccessDock *_dock;
@@ -93,7 +107,7 @@ private slots:
 	void on_actionScenes_triggered();
 };
 
-class QuickAccess : public QListWidget {
+class QuickAccess : public QWidget {
 	Q_OBJECT
 
 public:
@@ -143,6 +157,13 @@ private:
 	std::set<std::string> _dynamicScenes;
 	bool _active = true;
 	bool _switchingSC = false;
+
+	// Context menu actions
+	QAction *_actionCtxtAdd = nullptr;
+	QAction *_actionCtxtAddCurrent = nullptr;
+	QAction *_actionCtxtFilters = nullptr;
+	QAction *_actionCtxtProperties = nullptr;
+	QAction *_actionCtxtRemoveFromDock = nullptr;
 
 private slots:
 	void on_actionAddSource_triggered();
