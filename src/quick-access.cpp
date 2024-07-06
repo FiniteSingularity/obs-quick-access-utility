@@ -9,6 +9,7 @@
 #include <QHBoxLayout>
 #include <QListWidget>
 #include <QWidgetAction>
+#include <QMessageBox>
 #include <QLineEdit>
 #include <QApplication>
 #include <QThread>
@@ -1046,9 +1047,24 @@ void QuickAccess::on_actionRemoveSource_triggered()
 	auto item = _sourceList->currentItem();
 	if (!item)
 		return;
-	_sourceList->setCurrentItem(nullptr);
-	_sourceList->removeItemWidget(item);
-	delete item;
+
+	QuickAccessItem *widget =
+		dynamic_cast<QuickAccessItem *>(_sourceList->itemWidget(item));
+	std::string sourceName = widget->GetSourceName();
+	std::string dockName = _dock->GetName();
+	std::string message = "Are you sure you want to remove " + sourceName +
+			      " from " + dockName + "?";
+	QMessageBox confirm(this);
+	confirm.setText(message.c_str());
+	confirm.setIcon(QMessageBox::Question);
+	confirm.setWindowTitle(message.c_str());
+	confirm.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+	int ret = confirm.exec();
+	if (ret == QMessageBox::Yes) {
+		_sourceList->setCurrentItem(nullptr);
+		_sourceList->removeItemWidget(item);
+		delete item;
+	}
 }
 
 void QuickAccess::on_actionSourceUp_triggered()
