@@ -57,7 +57,7 @@ public:
 	static void SourceCreated(void *data, calldata_t *params);
 	static void SourceDestroyed(void *data, calldata_t *params);
 	static void SourceRename(void *data, calldata_t *params);
-	static void CheckModule(void* data, obs_module_t* module);
+	static void CheckModule(void *data, obs_module_t *module);
 
 private:
 	obs_module_t *_module = nullptr;

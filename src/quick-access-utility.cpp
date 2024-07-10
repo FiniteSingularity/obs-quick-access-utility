@@ -224,8 +224,11 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 	}
 }
 
-void QuickAccessUtility::CheckModule(void* data, obs_module_t* module) {
-	const char* modName = obs_get_module_name(module);
+void QuickAccessUtility::CheckModule(void *data, obs_module_t *module)
+{
+	UNUSED_PARAMETER(data);
+
+	const char *modName = obs_get_module_name(module);
 	if (modName && strcmp(modName, "Source Clone") == 0) {
 		qau->_sourceCloneInstalled = true;
 	}
