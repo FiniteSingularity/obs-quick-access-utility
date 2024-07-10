@@ -61,7 +61,7 @@ public:
 	~QuickAccessItem();
 	void Save(obs_data_t *saveObj);
 	const char *GetSourceName();
-
+	void RenameSource(std::string name);
 	static bool GetSceneItemsFromScene(void *data, obs_source_t *s);
 	static bool AddSceneItems(obs_scene_t *s, obs_sceneitem_t *si,
 				  void *data);
@@ -165,6 +165,7 @@ private:
 	QAction *_actionCtxtFilters = nullptr;
 	QAction *_actionCtxtProperties = nullptr;
 	QAction *_actionCtxtRemoveFromDock = nullptr;
+	QAction *_actionCtxtRenameSource = nullptr;
 
 private slots:
 	void on_actionAddSource_triggered();

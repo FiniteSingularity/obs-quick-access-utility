@@ -371,6 +371,13 @@ bool QuickAccessItem::Configurable()
 	return configurable;
 }
 
+void QuickAccessItem::RenameSource(std::string name)
+{
+	obs_source_t *source = obs_weak_source_get_source(_source);
+	obs_source_set_name(source, name.c_str());
+	obs_source_release(source);
+}
+
 QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	: QWidget(parent),
 	  _dock(dock)
@@ -479,6 +486,27 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		widget->OpenFilters();
 	});
 	_sourceList->addAction(_actionCtxtFilters);
+
+	_actionCtxtRenameSource = new QAction(_sourceList);
+	_actionCtxtRenameSource->setText("Rename Source");
+	connect(_actionCtxtRenameSource, &QAction::triggered, this, [this]() {
+		QListWidgetItem *item = _sourceList->currentItem();
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		std::string currentName = widget->GetSourceName();
+
+		bool ok;
+		QString text = QInputDialog::getText(
+			this, "Rename Source", "New name:", QLineEdit::Normal,
+			currentName.c_str(), &ok);
+		if (ok && !text.isEmpty()) {
+			std::string newSourceName = text.toStdString();
+			widget->RenameSource(newSourceName);
+		} else {
+			return;
+		}
+	});
+	_sourceList->addAction(_actionCtxtRenameSource);
 
 	if (_dock->GetType() == "Manual") {
 		_actionCtxtAdd = new QAction(_sourceList);
@@ -1185,6 +1213,8 @@ void QuickAccess::on_sourceList_itemSelectionChanged()
 	_actionCtxtAddCurrent->setVisible(clickItem);
 	_actionCtxtAddCurrentClone->setVisible(clickItem &&
 					       qau->SourceCloneInstalled());
+	_actionCtxtRenameSource->setVisible(clickItem);
+
 	if (_dock->GetType() == "Manual") {
 		_actionCtxtAdd->setVisible(!clickItem);
 		_actionCtxtRemoveFromDock->setVisible(clickItem);
