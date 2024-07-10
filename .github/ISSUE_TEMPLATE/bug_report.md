@@ -26,7 +26,7 @@ If applicable, add screenshots to help explain your problem.
 **Environment**
  - OS/Version: [e.g. Windows 11]
  - OBS Version: [e.g. 29.1.2]
- - Composite Blur Plugin Version: [e.g. 0.0.1-alpha]
+ - Quick Access Utility Plugin Version: [e.g. 0.0.1-alpha]
  - Dock Type [e.g. Dynamic or Manual]
 
 **GPU**
