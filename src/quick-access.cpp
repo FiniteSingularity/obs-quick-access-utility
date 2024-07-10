@@ -1182,6 +1182,7 @@ void QuickAccess::on_sourceList_itemSelectionChanged()
 	_actionCtxtProperties->setVisible(clickItem);
 	_actionCtxtFilters->setVisible(clickItem);
 	_actionCtxtAddCurrent->setVisible(clickItem);
+	_actionCtxtAddCurrentClone->setVisible(clickItem && qau->SourceCloneInstalled());
 	if (_dock->GetType() == "Manual") {
 		_actionCtxtAdd->setVisible(!clickItem);
 		_actionCtxtRemoveFromDock->setVisible(clickItem);
