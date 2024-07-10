@@ -161,6 +161,7 @@ private:
 	// Context menu actions
 	QAction *_actionCtxtAdd = nullptr;
 	QAction *_actionCtxtAddCurrent = nullptr;
+	QAction* _actionCtxtAddCurrentClone = nullptr;
 	QAction *_actionCtxtFilters = nullptr;
 	QAction *_actionCtxtProperties = nullptr;
 	QAction *_actionCtxtRemoveFromDock = nullptr;
