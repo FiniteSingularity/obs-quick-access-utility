@@ -224,6 +224,16 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 	}
 }
 
+void QuickAccessUtility::CheckModule(void *data, obs_module_t *module)
+{
+	UNUSED_PARAMETER(data);
+
+	const char *modName = obs_get_module_name(module);
+	if (modName && strcmp(modName, "Source Clone") == 0) {
+		qau->_sourceCloneInstalled = true;
+	}
+}
+
 void QuickAccessUtility::CreateDock(CreateDockFormData data)
 {
 	// Set up data
@@ -705,6 +715,11 @@ extern "C" EXPORT void ShutdownQAU()
 	blog(LOG_INFO, "ShutdownQAU called.");
 	obs_frontend_remove_save_callback(frontendSaveLoad, qau);
 	delete qau;
+}
+
+extern "C" EXPORT void CheckModules()
+{
+	obs_enum_modules(&QuickAccessUtility::CheckModule, qau);
 }
 
 void frontendSaveLoad(obs_data_t *save_data, bool saving, void *data)

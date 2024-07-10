@@ -39,6 +39,8 @@ public:
 	void RemoveDock(int idx, bool cleanup = false);
 	void RemoveDocks();
 	inline std::vector<QuickAccessDock *> GetDocks() { return _docks; }
+	inline bool SourceCloneInstalled() { return _sourceCloneInstalled; }
+	inline bool dskInstalled() { return _dskInstalled; }
 
 	obs_module_t *GetModule();
 	bool mainWindowOpen = false;
@@ -55,12 +57,15 @@ public:
 	static void SourceCreated(void *data, calldata_t *params);
 	static void SourceDestroyed(void *data, calldata_t *params);
 	static void SourceRename(void *data, calldata_t *params);
+	static void CheckModule(void *data, obs_module_t *module);
 
 private:
 	obs_module_t *_module = nullptr;
 	std::vector<QuickAccessDock *> _docks;
 	bool _firstRun;
 	bool _sceneCollectionChanging = false;
+	bool _sourceCloneInstalled = false;
+	bool _dskInstalled = false;
 };
 
 class CreateDockDialog : public QDialog {

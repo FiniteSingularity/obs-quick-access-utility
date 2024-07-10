@@ -17,6 +17,7 @@
 #include <QScrollArea>
 #include <QDialog>
 #include <QMouseEvent>
+#include <QInputDialog>
 
 #include <algorithm>
 #include "version.h"
@@ -417,6 +418,47 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		obs_source_release(sceneSrc);
 	});
 	_sourceList->addAction(_actionCtxtAddCurrent);
+
+	_actionCtxtAddCurrentClone = new QAction(_sourceList);
+	_actionCtxtAddCurrentClone->setText("Add Clone to Current Scene");
+	connect(_actionCtxtAddCurrentClone, &QAction::triggered, this, [this]() {
+		QListWidgetItem *item = _sourceList->currentItem();
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		obs_source_t *sceneSrc = obs_frontend_get_current_scene();
+
+		const char *sourceCloneId = "source-clone";
+		const char *vId = obs_get_latest_input_type_id(sourceCloneId);
+		blog(LOG_INFO, "Source Clone v_id is: %s", vId);
+
+		std::string sourceName = widget->GetSourceName();
+		std::string newSourceName = sourceName + " CLONE";
+
+		// Pop open QDialog to ask for new cloned source name.
+		bool ok;
+		QString text = QInputDialog::getText(
+			this, "Name of new source",
+			"Clone Name:", QLineEdit::Normal, "Testing...", &ok);
+		if (ok && !text.isEmpty()) {
+			newSourceName = text.toStdString();
+		} else {
+			return;
+		}
+
+		obs_source_t *newSource = obs_source_create(
+			vId, newSourceName.c_str(), NULL, NULL);
+		obs_data_t *settings = obs_source_get_settings(newSource);
+		obs_data_set_string(settings, "clone", sourceName.c_str());
+		obs_source_update(newSource, settings);
+		obs_data_release(settings);
+
+		obs_scene_t *scene = obs_scene_from_source(sceneSrc);
+		obs_scene_add(scene, newSource);
+
+		obs_source_release(sceneSrc);
+		obs_source_release(newSource);
+	});
+	_sourceList->addAction(_actionCtxtAddCurrentClone);
 
 	_actionCtxtProperties = new QAction(_sourceList);
 	_actionCtxtProperties->setText("Properties");
@@ -1141,6 +1183,8 @@ void QuickAccess::on_sourceList_itemSelectionChanged()
 	_actionCtxtProperties->setVisible(clickItem);
 	_actionCtxtFilters->setVisible(clickItem);
 	_actionCtxtAddCurrent->setVisible(clickItem);
+	_actionCtxtAddCurrentClone->setVisible(clickItem &&
+					       qau->SourceCloneInstalled());
 	if (_dock->GetType() == "Manual") {
 		_actionCtxtAdd->setVisible(!clickItem);
 		_actionCtxtRemoveFromDock->setVisible(clickItem);

@@ -13,6 +13,7 @@ void InitializeQAU(obs_module_t *, translateFunc);
 void ShutdownQAU();
 void LoadSourceItems();
 void frontend_save_load(obs_data_t *save_data, bool saving, void *);
+void CheckModules();
 
 bool obs_module_load()
 {
@@ -25,6 +26,11 @@ bool obs_module_load()
 void obs_module_unload()
 {
 	ShutdownQAU();
+}
+
+void obs_module_post_load()
+{
+	CheckModules();
 }
 
 MODULE_EXPORT const char *obs_module_description(void)
