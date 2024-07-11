@@ -24,7 +24,8 @@ class QuickAccessSceneItem : public QWidget {
 public:
 	QuickAccessSceneItem(QWidget *parent, obs_sceneitem_t *sceneItem);
 	~QuickAccessSceneItem();
-	void mouseReleaseEvent(QMouseEvent *e) override;
+	void setHighlight(bool h);
+	//void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
 	obs_sceneitem_t *_sceneItem = nullptr;
