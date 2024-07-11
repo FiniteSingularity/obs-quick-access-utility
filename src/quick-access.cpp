@@ -321,7 +321,14 @@ QMenu *QuickAccessItem::_CreateSceneMenu()
 			[this, name]() {
 				obs_source_t *sceneClicked =
 					obs_get_source_by_name(name);
-				obs_frontend_set_current_scene(sceneClicked);
+				if (obs_frontend_preview_program_mode_active()) {
+					obs_frontend_set_current_preview_scene(
+						sceneClicked);
+				} else {
+					obs_frontend_set_current_scene(
+						sceneClicked);
+				}
+
 				obs_source_release(sceneClicked);
 			});
 
@@ -377,7 +384,11 @@ void QuickAccessItem::SwitchToScene()
 {
 	obs_source_t *source = obs_weak_source_get_source(_source);
 	if (obs_source_is_scene(source)) {
-		obs_frontend_set_current_scene(source);
+		if (obs_frontend_preview_program_mode_active()) {
+			obs_frontend_set_current_preview_scene(source);
+		} else {
+			obs_frontend_set_current_scene(source);
+		}
 	}
 
 	obs_source_release(source);
