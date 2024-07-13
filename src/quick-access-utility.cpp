@@ -240,18 +240,10 @@ void QuickAccessUtility::CreateDock(CreateDockFormData data)
 	auto dockData = obs_data_create();
 	obs_data_set_string(dockData, "dock_name", data.dockName.c_str());
 	obs_data_set_string(dockData, "dock_type", data.dockType.c_str());
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(29, 1, 0)
+
 	char *dockId = os_generate_uuid();
 	obs_data_set_string(dockData, "dock_id", dockId);
 	bfree(dockId);
-#else
-	unsigned seed =
-		std::chrono::system_clock::now().time_since_epoch().count();
-	std::mt19937 rng(seed);
-	unsigned v = rng();
-	std::string dockId = std::to_string(v);
-	obs_data_set_string(dockData, "dock_id", dockId.c_str());
-#endif
 
 	obs_data_set_bool(dockData, "show_properties", data.showProperties);
 	obs_data_set_bool(dockData, "show_filters", data.showFilters);
@@ -687,6 +679,7 @@ void CreateDockDialog::on_create_dock()
 	formData.showProperties = _showProperties->isChecked();
 	formData.showFilters = _showFilters->isChecked();
 	formData.showScenes = _showScenes->isChecked();
+	formData.clickableScenes = _clickThroughScenes->isChecked();
 	formData.clickableScenes = _clickThroughScenes->isChecked();
 	qau->CreateDock(formData);
 	done(DialogCode::Accepted);
