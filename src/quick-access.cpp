@@ -19,6 +19,7 @@
 #include <QMouseEvent>
 #include <QInputDialog>
 #include <QMainWindow>
+#include <QComboBox>
 
 #include <algorithm>
 #include "version.h"
@@ -752,9 +753,9 @@ void QuickAccess::_LoadDynamicScenes()
 	_dynamicScenes.clear();
 	_sourceList->clear();
 
-	obs_source_t *dsk = obs_get_output_source(8);
-	const char *dsk_name = obs_source_get_name(dsk);
-	obs_source_release(dsk);
+	//obs_source_t *dsk = obs_get_output_source(8);
+	//const char *dsk_name = obs_source_get_name(dsk);
+	//obs_source_release(dsk);
 	obs_source_t *current = obs_weak_source_get_source(_current);
 	obs_scene_t *currentScene = obs_scene_from_source(current);
 	obs_scene_enum_items(currentScene, QuickAccess::DynAddSceneItems, this);
