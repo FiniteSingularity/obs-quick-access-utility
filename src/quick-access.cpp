@@ -19,7 +19,6 @@
 #include <QMouseEvent>
 #include <QInputDialog>
 #include <QMainWindow>
-#include <QComboBox>
 
 #include <algorithm>
 #include "version.h"

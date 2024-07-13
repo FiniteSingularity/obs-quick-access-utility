@@ -13,6 +13,7 @@
 #include <QHBoxLayout>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QComboBox>
 
 #include <vector>
 #include <set>
