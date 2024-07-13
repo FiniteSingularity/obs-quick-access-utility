@@ -18,6 +18,7 @@
 #include <QDialog>
 #include <QMouseEvent>
 #include <QInputDialog>
+#include <QMainWindow>
 
 #include <algorithm>
 #include "version.h"
@@ -585,13 +586,12 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	}
 
 	layout->addWidget(_sourceList);
+	_actionsToolbar = new QToolBar(this);
+	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
+	_actionsToolbar->setIconSize(QSize(16, 16));
+	_actionsToolbar->setFloatable(false);
 
 	if (_dock->GetType() == "Manual") {
-		_actionsToolbar = new QToolBar(this);
-		_actionsToolbar->setObjectName(
-			QStringLiteral("actionsToolbar"));
-		_actionsToolbar->setIconSize(QSize(16, 16));
-		_actionsToolbar->setFloatable(false);
 
 		_actionAddSource = new QAction(this);
 		_actionAddSource->setObjectName(
@@ -635,23 +635,35 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 			SLOT(on_actionSourceDown_triggered()));
 		_actionsToolbar->addAction(_actionSourceDown);
 
-		// Themes need the QAction dynamic properties
-		for (QAction *x : _actionsToolbar->actions()) {
-			QWidget *temp = _actionsToolbar->widgetForAction(x);
-
-			for (QByteArray &y : x->dynamicPropertyNames()) {
-				temp->setProperty(y, x->property(y));
-			}
-		}
-
 		_actionRemoveSource->setEnabled(false);
 		_actionSourceUp->setEnabled(false);
 		_actionSourceDown->setEnabled(false);
-
-		layout->addWidget(_actionsToolbar);
-		layout->addItem(new QSpacerItem(150, 0, QSizePolicy::Fixed,
-						QSizePolicy::Minimum));
 	}
+
+	QWidget *spacer = new QWidget();
+	spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	_actionsToolbar->addWidget(spacer);
+
+	_actionDockProperties = new QAction(this);
+	_actionDockProperties->setObjectName(QStringLiteral("actionSourceUp"));
+	_actionDockProperties->setProperty("themeID", "propertiesIconSmall");
+	_actionDockProperties->setText(QT_UTF8(obs_module_text("Dock Props")));
+	connect(_actionDockProperties, SIGNAL(triggered()), this,
+		SLOT(on_actionDockProperties_triggered()));
+	_actionsToolbar->addAction(_actionDockProperties);
+
+	// Themes need the QAction dynamic properties
+	for (QAction *x : _actionsToolbar->actions()) {
+		QWidget *temp = _actionsToolbar->widgetForAction(x);
+
+		for (QByteArray &y : x->dynamicPropertyNames()) {
+			temp->setProperty(y, x->property(y));
+		}
+	}
+
+	layout->addWidget(_actionsToolbar);
+	layout->addItem(new QSpacerItem(150, 0, QSizePolicy::Fixed,
+					QSizePolicy::Minimum));
 
 	if (_dock->GetType() == "Dynamic") {
 		QuickAccess::SceneChangeCallback(
@@ -740,6 +752,9 @@ void QuickAccess::_LoadDynamicScenes()
 	_dynamicScenes.clear();
 	_sourceList->clear();
 
+	//obs_source_t *dsk = obs_get_output_source(8);
+	//const char *dsk_name = obs_source_get_name(dsk);
+	//obs_source_release(dsk);
 	obs_source_t *current = obs_weak_source_get_source(_current);
 	obs_scene_t *currentScene = obs_scene_from_source(current);
 	obs_scene_enum_items(currentScene, QuickAccess::DynAddSceneItems, this);
@@ -1168,6 +1183,14 @@ void QuickAccess::on_actionRemoveSource_triggered()
 	}
 }
 
+void QuickAccess::on_actionDockProperties_triggered()
+{
+	const auto main_window =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	UpdateDockDialog *dockDialog = new UpdateDockDialog(_dock, main_window);
+	dockDialog->show();
+}
+
 void QuickAccess::on_actionSourceUp_triggered()
 {
 	int index = _sourceList->currentRow();
@@ -1406,6 +1429,103 @@ void QuickAccessSceneItem::setHighlight(bool h)
 {
 	setBackgroundRole(h ? QPalette::Highlight : QPalette::Window);
 	setAutoFillBackground(h);
+}
+
+UpdateDockDialog::UpdateDockDialog(QuickAccessDock *dock, QWidget *parent)
+	: QDialog(parent),
+	  _dock(dock)
+{
+	setWindowModality(Qt::WindowModal);
+	setAttribute(Qt::WA_DeleteOnClose, true);
+	setWindowTitle(QString("Add Quick Access Dock"));
+	setMinimumWidth(400);
+	setMinimumHeight(300);
+	int labelWidth = 120;
+	_layout = new QVBoxLayout();
+
+	// Form layout
+	_layout2 = new QVBoxLayout();
+
+	auto layoutName = new QHBoxLayout();
+
+	auto inputLabel = new QLabel(this);
+	inputLabel->setText("Dock Name:");
+	inputLabel->setFixedWidth(labelWidth);
+
+	_inputName = new QLineEdit(this);
+	_inputName->setPlaceholderText("Dock Name");
+	_inputName->setText(_dock->GetName().c_str());
+	_inputName->connect(_inputName, &QLineEdit::textChanged,
+			    [this](const QString text) {
+				    _buttonBox->button(QDialogButtonBox::Ok)
+					    ->setEnabled(text.length() > 0);
+			    });
+
+	layoutName->addWidget(inputLabel);
+	layoutName->addWidget(_inputName);
+
+	_layout2->addItem(layoutName);
+
+	auto optionsLabel = new QLabel(this);
+	optionsLabel->setText("Dock Options:");
+	_layout2->addWidget(optionsLabel);
+
+	_showProperties = new QCheckBox(this);
+	_showProperties->setText("Show Properties?");
+	_showProperties->setChecked(_dock->ShowProperties());
+	_layout2->addWidget(_showProperties);
+
+	_showFilters = new QCheckBox(this);
+	_showFilters->setText("Show Filters?");
+	_showFilters->setChecked(_dock->ShowFilters());
+	_layout2->addWidget(_showFilters);
+
+	_showScenes = new QCheckBox(this);
+	_showScenes->setText("Show Parent Scenes?");
+	_showScenes->setChecked(_dock->ShowScenes());
+	_layout2->addWidget(_showScenes);
+
+	_clickThroughScenes = new QCheckBox(this);
+	_clickThroughScenes->setText("Clickable Scenes?");
+	_clickThroughScenes->setChecked(_dock->ClickableScenes());
+	_layout2->addWidget(_clickThroughScenes);
+
+	_buttonBox = new QDialogButtonBox(this);
+	_buttonBox->setStandardButtons(QDialogButtonBox::Cancel |
+				       QDialogButtonBox::Ok);
+
+	connect(_buttonBox, SIGNAL(accepted()), this, SLOT(on_update_dock()));
+	connect(_buttonBox, SIGNAL(rejected()), this, SLOT(on_cancel()));
+
+	_layout->addItem(_layout2);
+
+	// Spacer to push buttons to bottom of widget
+	QWidget *spacer = new QWidget(this);
+	spacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	spacer->setVisible(true);
+	_layout->addWidget(spacer);
+
+	_layout->addWidget(_buttonBox);
+
+	setLayout(_layout);
+}
+
+void UpdateDockDialog::on_update_dock()
+{
+	blog(LOG_INFO, "Update Dock");
+	_dock->SetName(QT_TO_UTF8(_inputName->text()));
+	_dock->SetProperties(_showProperties->isChecked());
+	_dock->SetFilters(_showFilters->isChecked());
+	_dock->SetScenes(_showScenes->isChecked());
+	_dock->SetClickableScenes(_clickThroughScenes->isChecked());
+	_dock->SetItemsButtonVisibility();
+	done(DialogCode::Accepted);
+}
+
+void UpdateDockDialog::on_cancel()
+{
+	blog(LOG_INFO, "Cancel");
+	done(DialogCode::Rejected);
 }
 
 bool AddSourceToWidget(void *data, obs_source_t *source)

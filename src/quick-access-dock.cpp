@@ -65,6 +65,15 @@ QuickAccessDock::~QuickAccessDock()
 	}
 }
 
+void QuickAccessDock::SetName(std::string name)
+{
+	_dockName = name;
+	auto d = parentWidget();
+	if (d) {
+		d->setWindowTitle(name.c_str());
+	}
+}
+
 void QuickAccessDock::CleanupSourceHandlers()
 {
 	if (_widget) {

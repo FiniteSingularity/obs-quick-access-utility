@@ -11,6 +11,9 @@
 #include <QPushButton>
 #include <QToolBar>
 #include <QHBoxLayout>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QComboBox>
 
 #include <vector>
 #include <set>
@@ -146,6 +149,7 @@ private:
 	QAction *_actionRemoveSource = nullptr;
 	QAction *_actionSourceUp = nullptr;
 	QAction *_actionSourceDown = nullptr;
+	QAction *_actionDockProperties = nullptr;
 	QDialog *CreateAddSourcePopupMenu();
 	obs_weak_source_t *_current = nullptr;
 	signal_handler_t *source_signal_handler = nullptr;
@@ -173,7 +177,34 @@ private slots:
 	void on_actionRemoveSource_triggered();
 	void on_actionSourceUp_triggered();
 	void on_actionSourceDown_triggered();
+	void on_actionDockProperties_triggered();
 	void on_sourceList_itemSelectionChanged();
+};
+
+class UpdateDockDialog : public QDialog {
+	Q_OBJECT
+public:
+	UpdateDockDialog(QuickAccessDock *dock, QWidget *parent = nullptr);
+
+private:
+	QuickAccessDock *_dock = nullptr;
+	QLayout *_layout = nullptr;
+	QLayout *_layout2 = nullptr;
+	//QLabel* _labelName = nullptr;
+	QLineEdit *_inputName = nullptr;
+
+	//QLabel* _labelType = nullptr;
+	QComboBox *_inputType = nullptr;
+
+	QCheckBox *_showProperties = nullptr;
+	QCheckBox *_showFilters = nullptr;
+	QCheckBox *_showScenes = nullptr;
+	QCheckBox *_clickThroughScenes = nullptr;
+
+	QDialogButtonBox *_buttonBox = nullptr;
+private slots:
+	void on_update_dock();
+	void on_cancel();
 };
 
 bool AddSourceToWidget(void *data, obs_source_t *source);

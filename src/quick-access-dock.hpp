@@ -28,6 +28,7 @@ public:
 	inline void SetFilters(bool on) { _showFilters = on; }
 	inline void SetScenes(bool on) { _showScenes = on; }
 	inline void SetClickableScenes(bool on) { _clickableScenes = on; }
+	void SetName(std::string name);
 	inline QDockWidget *GetDockWidget() { return _dockWidget; }
 	void SwitchingSceneCollections(bool state) { _switchingSC = state; }
 	void SetItemsButtonVisibility();
