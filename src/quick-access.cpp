@@ -262,6 +262,14 @@ bool QuickAccessItem::IsNullSource()
 	return ret;
 }
 
+bool QuickAccessItem::IsInteractive()
+{
+	obs_source_t *source = obs_weak_source_get_source(_source);
+	uint32_t flags = obs_source_get_output_flags(source);
+	obs_source_release(source);
+	return (flags & OBS_SOURCE_INTERACTION) == OBS_SOURCE_INTERACTION;
+}
+
 void QuickAccessItem::AddToScene(obs_source_t *sceneSrc)
 {
 	obs_source_t *source = GetSource();
@@ -278,6 +286,13 @@ void QuickAccessItem::OpenFilters()
 void QuickAccessItem::OpenProperties()
 {
 	on_actionProperties_triggered();
+}
+
+void QuickAccessItem::OpenInteract()
+{
+	obs_source_t *source = GetSource();
+	obs_frontend_open_source_interaction(source);
+	obs_source_release(source);
 }
 
 QMenu *QuickAccessItem::_CreateSceneMenu()
@@ -539,6 +554,16 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		}
 	});
 	_sourceList->addAction(_actionCtxtRenameSource);
+
+	_actionCtxtInteract = new QAction(_sourceList);
+	_actionCtxtInteract->setText("Interact");
+	connect(_actionCtxtInteract, &QAction::triggered, this, [this]() {
+		QListWidgetItem *item = _sourceList->currentItem();
+		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
+			_sourceList->itemWidget(item));
+		widget->OpenInteract();
+	});
+	_sourceList->addAction(_actionCtxtInteract);
 
 	if (_dock->GetType() == "Manual") {
 		_actionCtxtAdd = new QAction(_sourceList);
@@ -1267,6 +1292,7 @@ void QuickAccess::on_sourceList_itemSelectionChanged()
 	_actionCtxtAddCurrent->setVisible(clickItem);
 	_actionCtxtAddCurrentClone->setVisible(clickItem &&
 					       qau->SourceCloneInstalled());
+	_actionCtxtInteract->setVisible(clickItem && widget->IsInteractive());
 	_actionCtxtRenameSource->setVisible(clickItem);
 
 	if (_dock->GetType() == "Manual") {

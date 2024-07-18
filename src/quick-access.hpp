@@ -72,6 +72,7 @@ public:
 	void SetButtonVisibility();
 	bool IsSource(obs_source_t *s);
 	bool IsNullSource();
+	bool IsInteractive();
 	void SwitchToScene();
 	void UpdateLabel();
 
@@ -79,6 +80,7 @@ public:
 	void AddToScene(obs_source_t *scene);
 	void OpenFilters();
 	void OpenProperties();
+	void OpenInteract();
 
 	bool Configurable();
 
@@ -171,6 +173,7 @@ private:
 	QAction *_actionCtxtProperties = nullptr;
 	QAction *_actionCtxtRemoveFromDock = nullptr;
 	QAction *_actionCtxtRenameSource = nullptr;
+	QAction *_actionCtxtInteract = nullptr;
 
 private slots:
 	void on_actionAddSource_triggered();
