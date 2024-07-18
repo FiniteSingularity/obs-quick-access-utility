@@ -267,8 +267,6 @@ bool QuickAccessItem::IsInteractive()
 	obs_source_t *source = obs_weak_source_get_source(_source);
 	uint32_t flags = obs_source_get_output_flags(source);
 	obs_source_release(source);
-	bool result = (flags & OBS_SOURCE_INTERACTION) ==
-		      OBS_SOURCE_INTERACTION;
 	return (flags & OBS_SOURCE_INTERACTION) == OBS_SOURCE_INTERACTION;
 }
 
