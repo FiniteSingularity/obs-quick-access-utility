@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QCheckBox>
 #include <QListWidget>
+#include <QStackedWidget>
 #include <QMenu>
 #include <QPushButton>
 #include <QToolBar>
@@ -14,12 +15,62 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QComboBox>
+#include <QListView>
+#include <QSize>
+#include <QStyledItemDelegate>
+#include <QPainter>
+#include <QLineEdit>
+#include <QScrollArea>
 
 #include <vector>
+#include <map>
 #include <set>
+#include <memory>
+
+#include "quick-access-source.hpp"
 
 class QuickAccess;
 class QuickAccessDock;
+
+
+class QuickAccessSourceList : public QListView {
+	Q_OBJECT
+public:
+	QuickAccessSourceList(QWidget* parent, SearchType searchType);
+	QSize sizeHint() const override;
+	void search(std::string searchTerm);
+	inline int visibleCount() const { return _numActive; }
+	QuickAccessSource* currentSource();
+private:
+	QuickAccess* _qaParent;
+	void _setupContextMenu();
+	SearchType _searchType;
+	bool _activeSearch;
+	int _numActive;
+	QAction* _actionCtxtAddCurrent;
+	QAction* _actionCtxtAddCurrentClone;
+	QAction* _actionCtxtProperties;
+	QAction* _actionCtxtFilters;
+	QAction* _actionCtxtRenameSource;
+	QAction* _actionCtxtInteract;
+	QAction* _actionCtxtRefresh;
+	QAction* _actionCtxtToggleActivation;
+
+	QItemSelection _selected, _prior;
+
+protected:
+	void mousePressEvent(QMouseEvent* event) override;
+
+signals:
+	void selectedItemChanged(const QModelIndex& index);
+};
+
+struct QuickAccessSourceListView {
+	std::string header;
+	QLabel* headerLabel;
+	QuickAccessSourceList* listView;
+	QuickAccessSourceModel* model;
+};
 
 class QuickAccessSceneItem : public QWidget {
 	Q_OBJECT
@@ -60,10 +111,10 @@ class QuickAccessItem : public QFrame {
 
 public:
 	QuickAccessItem(QWidget *parent, QuickAccessDock *dock,
-			obs_source_t *source);
+			QuickAccessSource *qaSource);
 	QuickAccessItem(QWidget *parent, QuickAccessItem *original);
 	~QuickAccessItem();
-	void Save(obs_data_t *saveObj);
+	bool Save(obs_data_t *saveObj);
 	const char *GetSourceName();
 	void RenameSource(std::string name);
 	static bool GetSceneItemsFromScene(void *data, obs_source_t *s);
@@ -71,6 +122,7 @@ public:
 				  void *data);
 	void SetButtonVisibility();
 	bool IsSource(obs_source_t *s);
+	bool IsSource(QuickAccessSource* s);
 	bool IsNullSource();
 	bool IsInteractive();
 	void SwitchToScene();
@@ -83,6 +135,8 @@ public:
 	void OpenInteract();
 
 	bool Configurable();
+
+	bool SearchMatch(QString term);
 
 	inline obs_source_t *GetSource()
 	{
@@ -100,11 +154,15 @@ private:
 
 	QPushButton *_filters = nullptr;
 	obs_weak_source_t *_source = nullptr;
+	QuickAccessSource* _qaSource = nullptr;
 	std::vector<obs_sceneitem_t *> _sceneItems;
+	std::map<std::string, std::vector<std::string>> _searchGroups;
+	std::vector<std::string> _searchTerms;
 	bool _configurable;
 	void _getSceneItems();
 	void _clearSceneItems();
 	QMenu *_CreateSceneMenu();
+	void _SetSearchTerms();
 	void _AddScenePopupMenu(const QPoint &pos);
 
 private slots:
@@ -119,32 +177,35 @@ class QuickAccess : public QWidget {
 public:
 	QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name);
 	~QuickAccess();
-	void AddSource(const char *sourceName, bool hidden = false);
-	void AddSourceAtIndex(const char *sourceName, int index);
-	void Load(obs_data_t *loadObj);
-	void LoadAllSources();
+	void AddSource(QuickAccessSource* source, std::string groupName);
+	void RemoveSource(QuickAccessSource* source, std::string groupName);
+	void Load();
+	void UpdateVisibility();
 	void Save(obs_data_t *saveObj);
 	void AddSourceMenuItem(obs_source_t *source);
 	void SetItemsButtonVisibility();
 	void updateEnabled();
-	void CleanupSourceHandlers();
-
+	void Redraw();
+	void ClearSelections(QuickAccessSourceList* skip);
+	void SearchFocus();
+	void DismissModal();
 	static bool AddSourceName(void *data, obs_source_t *source);
-
-	static void SceneChangeCallback(enum obs_frontend_event event,
-					void *data);
-	static bool DynAddSceneItems(obs_scene_t *scene,
-				     obs_sceneitem_t *sceneItem, void *data);
-
-	static void ItemAddedToScene(void *data, calldata_t *params);
-	static void ItemRemovedFromScene(void *data, calldata_t *params);
+	static bool GetSceneItemsFromScene(void* data, obs_source_t* s);
+	static bool AddSceneItems(obs_scene_t* s, obs_sceneitem_t* si, void* data);
 
 	void RemoveNullSources();
-	void SourceRename(obs_source_t *source);
+	void SourceRename(QListWidgetItem* item);
+	virtual void paintEvent(QPaintEvent*);
 
 private:
 	QuickAccessDock *_dock;
 	QuickAccessList *_sourceList;
+	QStackedWidget* _contents;
+	QScrollArea* _listsContainer;
+	QWidget* _emptySearch;
+	QWidget* _emptyManual;
+	QWidget* _emptyDynamic;
+	QWidget* _noSearchResults;
 	QLineEdit *_searchText;
 	QToolBar *_actionsToolbar;
 	QAction *_actionAddSource = nullptr;
@@ -154,16 +215,26 @@ private:
 	QAction *_actionDockProperties = nullptr;
 	QDialog *CreateAddSourcePopupMenu();
 	obs_weak_source_t *_current = nullptr;
+	QuickAccessSource* _currentSource = nullptr;
 	signal_handler_t *source_signal_handler = nullptr;
 	void AddSourcePopupMenu();
+	QMenu* _CreateParentSceneMenu();
 	void _ClearMenuSources();
-	void _LoadDynamicScenes();
+	void _getSceneItems();
+	void _clearSceneItems();
+	void _createListContainer();
 	std::vector<obs_source_t *> _menuSources;
 	std::vector<std::string> _manualSourceNames;
 	std::vector<std::string> _allSourceNames;
 	std::set<std::string> _dynamicScenes;
+	std::vector<obs_sceneitem_t*> _sceneItems;
+
+	std::vector<QuickAccessSourceListView> _qaLists;
+	std::vector<std::unique_ptr<QuickAccessSourceModel>> _sourceModels;
+
 	bool _active = true;
 	bool _switchingSC = false;
+	bool _noSearch = true;
 
 	// Context menu actions
 	QAction *_actionCtxtAdd = nullptr;
@@ -174,6 +245,8 @@ private:
 	QAction *_actionCtxtRemoveFromDock = nullptr;
 	QAction *_actionCtxtRenameSource = nullptr;
 	QAction *_actionCtxtInteract = nullptr;
+
+	int _activeIndex = -1;
 
 private slots:
 	void on_actionAddSource_triggered();
@@ -211,3 +284,4 @@ private slots:
 };
 
 bool AddSourceToWidget(void *data, obs_source_t *source);
+void EnumerateFilters(obs_source_t* parentScene, obs_source_t* filter, void* param);

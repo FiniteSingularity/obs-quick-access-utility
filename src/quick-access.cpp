@@ -13,12 +13,16 @@
 #include <QLineEdit>
 #include <QApplication>
 #include <QThread>
+#include <QtConcurrent>
 #include <QMetaObject>
 #include <QScrollArea>
 #include <QDialog>
 #include <QMouseEvent>
 #include <QInputDialog>
 #include <QMainWindow>
+#include <QString>
+#include <QtConcurrent>
+#include <QScrollArea>
 
 #include <algorithm>
 #include "version.h"
@@ -26,7 +30,220 @@
 #define QT_UTF8(str) QString::fromUtf8(str)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
 
+#define BROWSER_SOURCE_ID "browser_source"
+#define IMAGE_SOURCE_ID "image_source"
+#define MEDIA_SOURCE_ID "ffmpeg_source"
+
 extern QuickAccessUtility *qau;
+
+QuickAccessSourceList::QuickAccessSourceList(QWidget* parent, SearchType searchType)
+	: QListView(parent), _searchType(searchType), _activeSearch(false), _numActive(0)
+{
+	_qaParent = dynamic_cast<QuickAccess*>(parent);
+	setContextMenuPolicy(Qt::ActionsContextMenu);
+	setMouseTracking(true);
+	setSelectionMode(QAbstractItemView::SingleSelection);
+	setSelectionBehavior(QAbstractItemView::SelectItems);
+	setProperty("showDropIndicator", QVariant(true));
+	setDragEnabled(false);
+	setAcceptDrops(false);
+	setDragDropMode(QAbstractItemView::InternalMove);
+	setDefaultDropAction(Qt::TargetMoveAction);
+	_setupContextMenu();
+	//setAttribute(Qt::WA_TranslucentBackground);
+}
+
+void QuickAccessSourceList::_setupContextMenu()
+{
+	_actionCtxtAddCurrent = new QAction(this);
+	_actionCtxtAddCurrent->setText("Add to Current Scene");
+	connect(_actionCtxtAddCurrent, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		obs_source_t* src = source->get();
+
+		bool studio = obs_frontend_preview_program_mode_active();
+		obs_source_t* currentScene = studio ? obs_frontend_get_current_preview_scene() : obs_frontend_get_current_scene();
+
+		obs_scene_t* scene = obs_scene_from_source(currentScene);
+		obs_scene_add(scene, src);
+		obs_source_release(src);
+		obs_source_release(currentScene);
+		_qaParent->DismissModal();
+	});
+	addAction(_actionCtxtAddCurrent);
+
+	_actionCtxtAddCurrentClone = new QAction(this);
+	_actionCtxtAddCurrentClone->setText("Add Clone to Current Scene");
+	connect(_actionCtxtAddCurrentClone, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		bool studio = obs_frontend_preview_program_mode_active();
+		obs_source_t* sceneSrc = studio ? obs_frontend_get_current_preview_scene() : obs_frontend_get_current_scene();
+
+		const char* sourceCloneId = "source-clone";
+		const char* vId = obs_get_latest_input_type_id(sourceCloneId);
+
+		std::string sourceName = source->getName();
+		std::string newSourceName = sourceName + " CLONE";
+
+		// Pop open QDialog to ask for new cloned source name.
+		bool ok;
+		QString text = QInputDialog::getText(
+			this, "Name of new source",
+			"Clone Name:", QLineEdit::Normal, newSourceName.c_str(), &ok);
+		if (ok && !text.isEmpty()) {
+			newSourceName = text.toStdString();
+		}
+		else {
+			return;
+		}
+
+		obs_source_t* newSource = obs_source_create(
+			vId, newSourceName.c_str(), NULL, NULL);
+		obs_data_t* settings = obs_source_get_settings(newSource);
+		obs_data_set_string(settings, "clone", sourceName.c_str());
+		obs_source_update(newSource, settings);
+		obs_data_release(settings);
+
+		obs_scene_t* scene = obs_scene_from_source(sceneSrc);
+		obs_scene_add(scene, newSource);
+
+		obs_source_release(sceneSrc);
+		obs_source_release(newSource);
+		_qaParent->DismissModal();
+	});
+	addAction(_actionCtxtAddCurrentClone);
+
+	_actionCtxtProperties = new QAction(this);
+	_actionCtxtProperties->setText("Properties");
+	connect(_actionCtxtProperties, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		source->openProperties();
+	});
+	addAction(_actionCtxtProperties);
+
+	_actionCtxtFilters = new QAction(this);
+	_actionCtxtFilters->setText("Filters");
+	connect(_actionCtxtFilters, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		source->openFilters();
+	});
+	addAction(_actionCtxtFilters);
+
+	_actionCtxtRenameSource = new QAction(this);
+	_actionCtxtRenameSource->setText("Rename Source");
+	connect(_actionCtxtRenameSource, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+
+		std::string currentName = source->getName();
+
+		bool ok;
+		QString text = QInputDialog::getText(
+			this, "Rename Source", "New name:", QLineEdit::Normal,
+			currentName.c_str(), &ok);
+		if (ok && !text.isEmpty()) {
+			std::string newSourceName = text.toStdString();
+			source->rename(newSourceName);
+		}
+		else {
+			return;
+		}
+	});
+	addAction(_actionCtxtRenameSource);
+
+	_actionCtxtInteract = new QAction(this);
+	_actionCtxtInteract->setText("Interact");
+	connect(_actionCtxtInteract, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		source->openInteract();
+	});
+	addAction(_actionCtxtInteract);
+
+	_actionCtxtRefresh = new QAction(this);
+	_actionCtxtRefresh->setText("Refresh");
+	connect(_actionCtxtRefresh, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		source->refreshBrowser();
+		});
+	addAction(_actionCtxtRefresh);
+
+	_actionCtxtToggleActivation = new QAction(this);
+	_actionCtxtToggleActivation->setText("(De)Activate");
+	connect(_actionCtxtToggleActivation, &QAction::triggered, this, [this]() {
+		auto source = currentSource();
+		source->toggleActivation();
+		});
+	addAction(_actionCtxtToggleActivation);
+}
+
+QuickAccessSource* QuickAccessSourceList::currentSource() {
+	QModelIndex index = currentIndex();
+	auto m = dynamic_cast<QuickAccessSourceModel*>(model());
+	return m->item(index.row());
+}
+
+void QuickAccessSourceList::mousePressEvent(QMouseEvent* event)
+{
+	auto idx = indexAt(event->pos());
+	if (idx.isValid()) {
+		setCurrentIndex(idx);
+		_qaParent->ClearSelections(this);
+		// Check if source is interactive
+		auto sourceModel = dynamic_cast<QuickAccessSourceModel*>(model());
+		if (sourceModel) {
+			auto source = sourceModel->item(idx.row());
+			_actionCtxtInteract->setVisible(source && source->hasInteract());
+			_actionCtxtProperties->setVisible(source && source->hasProperties());
+			_actionCtxtRefresh->setVisible(source && source->hasRefresh());
+			auto activate = source->activeState();
+			if (activate != "") {
+				_actionCtxtToggleActivation->setText(activate.c_str());
+			}
+			_actionCtxtToggleActivation->setVisible(activate != "");
+		}
+	}
+	QListView::mousePressEvent(event);
+}
+
+QSize QuickAccessSourceList::sizeHint() const
+{
+	QMargins margins = contentsMargins();
+	int rows = _activeSearch ? _numActive : model()->rowCount();
+	if (rows == 0)
+		return QSize(width(), 0);
+	int minHeight = minimumHeight();
+	int height = rows * sizeHintForRow(0) + margins.top() + margins.bottom();
+	return QSize(width(), height);
+}
+
+void QuickAccessSourceList::search(std::string searchTerm)
+{
+	auto m = dynamic_cast<QuickAccessSourceModel*>(model());
+	if (!m) {
+		return;
+	}
+	int rows = m->rowCount();
+	if (searchTerm == "") {
+		_activeSearch = false;
+		for (int i = 0; i < rows; i++) {
+			setRowHidden(i, false);
+		}
+		_numActive = rows;
+	} else {
+		_activeSearch = true;
+		_numActive = 0;
+		setUpdatesEnabled(false);
+		for (int i = 0; i < rows; i++) {
+			auto source = m->item(i);
+			bool match = source->hasMatch(searchTerm, _searchType);
+			if (match) {
+				_numActive++;
+			}
+			setRowHidden(i, !(match));
+		}
+		setUpdatesEnabled(true);
+	}
+	updateGeometry();
+}
 
 QuickAccessList::QuickAccessList(QWidget *parent, QuickAccessDock *dock)
 	: QListWidget(parent),
@@ -59,7 +276,9 @@ void QuickAccessList::mousePressEvent(QMouseEvent *event)
 QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessItem *original)
 	: QFrame(parent),
 	  _dock(original->_dock),
-	  _configurable(false)
+	  _configurable(false),
+	  _searchTerms(original->_searchTerms),
+	  _qaSource(original->_qaSource)
 {
 	obs_source_t *source = obs_weak_source_get_source(original->_source);
 	_source = obs_source_get_weak_source(source);
@@ -67,10 +286,13 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessItem *original)
 }
 
 QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessDock *dock,
-				 obs_source_t *source)
+				QuickAccessSource* qaSource)
 	: QFrame(parent),
-	  _dock(dock)
+	  _dock(dock),
+	  _searchTerms(std::vector<std::string>()),
+	  _qaSource(qaSource)
 {
+	obs_source_t* source = qaSource->get();
 	_source = obs_source_get_weak_source(source);
 	_configurable = obs_source_configurable(source);
 	const char *id = obs_source_get_id(source);
@@ -145,6 +367,28 @@ QuickAccessItem::QuickAccessItem(QWidget *parent, QuickAccessDock *dock,
 
 	setLayout(layout);
 	SetButtonVisibility();
+	obs_source_release(source);
+}
+
+void QuickAccessItem::_SetSearchTerms()
+{
+
+}
+
+bool QuickAccessItem::SearchMatch(QString term)
+{
+	std::string strTerm = term.toStdString();
+	for (auto &searchTerm : _searchTerms) {
+		auto it
+			= std::search(searchTerm.begin(), searchTerm.end(), strTerm.begin(),
+				strTerm.end(), [](char a,  char b) {
+					return tolower(a) == tolower(b);
+				});
+		if (it != searchTerm.end()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void QuickAccessItem::SetButtonVisibility()
@@ -179,17 +423,14 @@ QuickAccessItem::~QuickAccessItem()
 	obs_weak_source_release(_source);
 }
 
-void QuickAccessItem::Save(obs_data_t *itemObj)
+bool QuickAccessItem::Save(obs_data_t *itemObj)
 {
-	obs_source_t *source = obs_weak_source_get_source(_source);
-	if (!source) {
-		return;
+	if (_qaSource->removing()) {
+		return false;
 	}
-
-	const char *sourceName = obs_source_get_name(source);
-	obs_data_set_string(itemObj, "source_name", sourceName);
-
-	obs_source_release(source);
+	std::string sourceName = _qaSource->getName();
+	obs_data_set_string(itemObj, "source_name", sourceName.c_str());
+	return true;
 }
 
 void QuickAccessItem::on_actionProperties_triggered()
@@ -250,6 +491,11 @@ bool QuickAccessItem::IsSource(obs_source_t *s)
 	bool ret = source == s;
 	obs_source_release(source);
 	return ret;
+}
+
+bool QuickAccessItem::IsSource(QuickAccessSource* s)
+{
+	return s == _qaSource;
 }
 
 bool QuickAccessItem::IsNullSource()
@@ -413,6 +659,7 @@ void QuickAccessItem::SwitchToScene()
 bool QuickAccessItem::Configurable()
 {
 	obs_source_t *source = obs_weak_source_get_source(_source);
+	if (!source) return false;
 	bool configurable = obs_source_configurable(source);
 	obs_source_release(source);
 	return configurable;
@@ -420,27 +667,88 @@ bool QuickAccessItem::Configurable()
 
 void QuickAccessItem::RenameSource(std::string name)
 {
-	obs_source_t *source = obs_weak_source_get_source(_source);
+	obs_source_t* source = obs_weak_source_get_source(_source);
 	obs_source_set_name(source, name.c_str());
 	obs_source_release(source);
 }
 
-QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
+QuickAccess::QuickAccess(QWidget* parent, QuickAccessDock* dock, QString name)
 	: QWidget(parent),
-	  _dock(dock)
+	_dock(dock)
 {
+	std::string imageBaseDir = obs_get_module_data_path(obs_current_module());
+	imageBaseDir += "/images/";
 	setObjectName(name);
 	auto layout = new QVBoxLayout(this);
+	setAttribute(Qt::WA_TranslucentBackground);
 	layout->setSpacing(0);
-	layout->setContentsMargins(0, 0, 0, 0);
+	layout->setContentsMargins(2, 2, 2, 2);
+
+	_listsContainer = new QScrollArea(this);
+	_createListContainer();
 
 	_sourceList = new QuickAccessList(this, _dock);
 	_sourceList->setObjectName(QStringLiteral("sources"));
+
+	_emptySearch = new QWidget(this);
+	QLabel* emptySearchLabel = new QLabel(this);
+	QLabel* searchImage = new QLabel(this);
+	std::string imgPath = imageBaseDir + "magnifying-glass-solid-white.svg";
+	QPixmap magImgPixmap = QIcon(imgPath.c_str()).pixmap(QSize(48, 48));
+	searchImage->setPixmap(magImgPixmap);
+	searchImage->setAlignment(Qt::AlignCenter);
+
+	emptySearchLabel->setText("Type in the search bar above to search for either a source name, source type, filter name, filter type, file path, or URL.");
+	emptySearchLabel->setWordWrap(true);
+	emptySearchLabel->setAlignment(Qt::AlignCenter);
+	//emptySearchLabel->setStyleSheet("QLabel {font-size: 18pt;}");
+	QVBoxLayout* emptySearchLayout = new QVBoxLayout();
+	QWidget* spacer1 = new QWidget(this);
+	QWidget* spacer2 = new QWidget(this);
+	spacer1->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	spacer2->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	emptySearchLayout->addWidget(spacer1);
+	emptySearchLayout->addWidget(searchImage);
+	emptySearchLayout->addWidget(emptySearchLabel);
+	emptySearchLayout->addWidget(spacer2);
+	_emptySearch->setLayout(emptySearchLayout);
+
+	_emptyManual = new QWidget(this);
+	QLabel* emptyManualLabel = new QLabel(this);
+	emptyManualLabel->setText("Add a source...");
+	QVBoxLayout* emptyManualLayout = new QVBoxLayout();
+	emptyManualLayout->addWidget(emptyManualLabel);
+	_emptyManual->setLayout(emptyManualLayout);
+
+	_emptyDynamic = new QWidget(this);
+	QLabel* emptyDynamicLabel = new QLabel(this);
+	emptyDynamicLabel->setText("No sources in the current scene...");
+	QVBoxLayout* emptyDynamicLayout = new QVBoxLayout();
+	emptyDynamicLayout->addWidget(emptyDynamicLabel);
+	_emptyDynamic->setLayout(emptyDynamicLayout);
+
+	_noSearchResults = new QWidget(this);
+	QLabel* noSearchResultsLabel = new QLabel(this);
+	noSearchResultsLabel->setText("No sources found matching search...");
+	QVBoxLayout* noSearchResultsLayout = new QVBoxLayout();
+	noSearchResultsLayout->addWidget(noSearchResultsLabel);
+	_noSearchResults->setLayout(noSearchResultsLayout);
+
+	_contents = new QStackedWidget(this);
+	_contents->addWidget(_listsContainer);    //0
+	_contents->addWidget(_emptySearch);  //1
+	_contents->addWidget(_emptyManual);  //2
+	_contents->addWidget(_emptyDynamic); //3
+	_contents->addWidget(_noSearchResults); //4
+	if (_dock->GetType() == "Source Search") {
+		_contents->setCurrentIndex(1);
+	}
+
 	QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	sizePolicy.setHorizontalStretch(0);
 	sizePolicy.setVerticalStretch(0);
 	sizePolicy.setHeightForWidth(
-		_sourceList->sizePolicy().hasHeightForWidth());
+	_sourceList->sizePolicy().hasHeightForWidth());
 	_sourceList->setSizePolicy(sizePolicy);
 	_sourceList->setContextMenuPolicy(Qt::CustomContextMenu);
 	_sourceList->setFrameShape(QFrame::NoFrame);
@@ -456,8 +764,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_sourceList->viewport()->setAcceptDrops(false);
 	}
 
-	connect(_sourceList, SIGNAL(itemSelectionChanged()), this,
-		SLOT(on_sourceList_itemSelectionChanged()));
+
 
 	_sourceList->setContextMenuPolicy(Qt::ActionsContextMenu);
 
@@ -581,36 +888,37 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 
 	std::string dockType = _dock->GetType();
 
-	if (dockType == "Source Search" || dockType == "Dynamic") {
+	if (dockType == "Source Search"/* || dockType == "Dynamic"*/) {
 		_searchText = new QLineEdit;
 		_searchText->setPlaceholderText("Search...");
+		_searchText->setClearButtonEnabled(true);
+		_searchText->setFocusPolicy(Qt::StrongFocus);
 		_searchText->connect(
 			_searchText, &QLineEdit::textChanged,
 			[this, dockType](const QString text) {
-				for (int i = 0; i < _sourceList->count(); i++) {
-					QListWidgetItem *item =
-						_sourceList->item(i);
-					QuickAccessItem *widget =
-						dynamic_cast<QuickAccessItem *>(
-							_sourceList->itemWidget(
-								item));
-					if (widget) {
-						QString wName =
-							widget->GetSourceName();
-						item->setHidden(
-							(text.isEmpty() &&
-							 dockType ==
-								 "Source Search") ||
-							!wName.contains(
-								text,
-								Qt::CaseInsensitive));
+				if (dockType == "Source Search") {
+					_noSearch = text.size() == 0;
+					int totalMatches = 0;
+					for (auto& qa : _qaLists) {
+						qa.listView->search(text.toStdString());
+						int numMatches = qa.listView->visibleCount();
+						totalMatches += numMatches;
+						qa.listView->setHidden(numMatches == 0);
+						qa.headerLabel->setHidden(numMatches == 0);
+					}
+					if (_noSearch) {
+						_contents->setCurrentIndex(1);
+					} else if (totalMatches == 0){
+						_contents->setCurrentIndex(4);
+					} else {
+						_contents->setCurrentIndex(0);
 					}
 				}
 			});
 		layout->addWidget(_searchText);
 	}
 
-	layout->addWidget(_sourceList);
+	layout->addWidget(_contents);
 	_actionsToolbar = new QToolBar(this);
 	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
 	_actionsToolbar->setIconSize(QSize(16, 16));
@@ -690,13 +998,6 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	layout->addItem(new QSpacerItem(150, 0, QSizePolicy::Fixed,
 					QSizePolicy::Minimum));
 
-	if (_dock->GetType() == "Dynamic") {
-		QuickAccess::SceneChangeCallback(
-			OBS_FRONTEND_EVENT_SCENE_CHANGED, this);
-		obs_frontend_add_event_callback(
-			QuickAccess::SceneChangeCallback, this);
-	}
-
 	on_sourceList_itemSelectionChanged();
 }
 
@@ -704,197 +1005,306 @@ QuickAccess::~QuickAccess()
 {
 	blog(LOG_INFO,
 	     "QuickAccess::~QuickAccess() called (Dock was destroyed)");
-	obs_frontend_remove_event_callback(QuickAccess::SceneChangeCallback,
-					   this);
 	if (_current) {
 		obs_weak_source_release(_current);
 	}
+	_clearSceneItems();
 	source_signal_handler = nullptr;
 }
 
-void QuickAccess::CleanupSourceHandlers()
+void QuickAccess::_createListContainer()
 {
-	if (source_signal_handler) {
-		blog(LOG_INFO, "QuickAccess::CleanupSourceHandlers()");
-		signal_handler_disconnect(source_signal_handler, "item_add",
-					  QuickAccess::ItemAddedToScene, this);
-		signal_handler_disconnect(source_signal_handler, "item_remove",
-					  QuickAccess::ItemRemovedFromScene,
-					  this);
-		source_signal_handler = nullptr;
+	_qaLists.clear();
+	_sourceModels.clear();
+	for (auto& dg : _dock->DisplayGroups()) {
+		auto model = new QuickAccessSourceModel();
+		_sourceModels.emplace_back(std::make_unique<QuickAccessSourceModel>(model));
+		_qaLists.push_back({
+			dg.name,
+			nullptr,
+			new QuickAccessSourceList(this, dg.searchType),
+			model
+			});
+		model->setSources(&dg.sources2);
 	}
-}
 
-void QuickAccess::SceneChangeCallback(enum obs_frontend_event event, void *data)
-{
-	QuickAccess *qa = static_cast<QuickAccess *>(data);
-	QMetaObject::invokeMethod(
-		QCoreApplication::instance()->thread(), [qa, event]() {
-			if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
-				blog(LOG_INFO, "SCENE CHANGE!");
-				qa->CleanupSourceHandlers();
-				obs_source_t *current =
-					obs_frontend_get_current_scene();
-				if (qa->_current) {
-					obs_weak_source_release(qa->_current);
-				}
-				qa->_current =
-					obs_source_get_weak_source(current);
-				qa->source_signal_handler =
-					obs_source_get_signal_handler(current);
-				signal_handler_connect(
-					qa->source_signal_handler, "item_add",
-					QuickAccess::ItemAddedToScene, qa);
-				signal_handler_connect(
-					qa->source_signal_handler,
-					"item_remove",
-					QuickAccess::ItemRemovedFromScene, qa);
-				obs_source_release(current);
-				qa->_LoadDynamicScenes();
-			} else if (event ==
-				   OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-				blog(LOG_INFO, "FINISHED LOADING...");
-				// Load the scene list if is a search bar.
-				qa->_active = true;
-			} else if (event == OBS_FRONTEND_EVENT_EXIT) {
-				blog(LOG_INFO, "EXITING...");
-				qa->_active = false;
-			} else if (event ==
-				   OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-				blog(LOG_INFO, "SCENE COLLECTION CHANGING");
-				qa->_dock->SwitchingSceneCollections(true);
-				qa->_active = false;
-				qa->CleanupSourceHandlers();
+	auto widget = _listsContainer->widget();
+	if (widget) {
+		delete widget;
+	}
+	_listsContainer->setStyleSheet("background: transparent");
+	_listsContainer->setWidgetResizable(true);
+	_listsContainer->setAttribute(Qt::WA_TranslucentBackground);
+	auto listsWidget = new QWidget();
+	auto lcLayout = new QVBoxLayout();
+	int i = 0;
+	for (auto& qa : _qaLists) {
+		auto header = new QLabel();
+		header->setText(qa.header.c_str());
+		header->setStyleSheet("QLabel { font-size: 18px }");
+		header->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+		header->setHidden(qa.header == "Manual");
+		qa.headerLabel = header;
+		lcLayout->addWidget(header);
+		qa.listView->setModel(qa.model);
+		qa.listView->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+		qa.listView->setMinimumHeight(0);
+		QuickAccessSourceDelegate* itemDelegate = new QuickAccessSourceDelegate(qa.listView, _dock);
+		qa.listView->setItemDelegate(itemDelegate);
+		connect(itemDelegate, &QuickAccessSourceDelegate::openPropertiesClicked, this, [this](const QModelIndex& index) {
+			const QuickAccessSourceModel* model = dynamic_cast<const QuickAccessSourceModel*>(index.model());
+			QuickAccessSource* source = model->item(index.row());
+			source->openProperties();
+			});
+		connect(itemDelegate, &QuickAccessSourceDelegate::openFiltersClicked, this, [this, qa](const QModelIndex& index) {
+			const QuickAccessSourceModel* model = dynamic_cast<const QuickAccessSourceModel*>(index.model());
+			QuickAccessSource* source = model->item(index.row());
+			source->openFilters();
+			});
+		connect(itemDelegate, &QuickAccessSourceDelegate::openParentScenesClicked, this, [this, qa](const QModelIndex& index) {
+			const QuickAccessSourceModel* model = dynamic_cast<const QuickAccessSourceModel*>(index.model());
+			QuickAccessSource* source = model->item(index.row());
+			_currentSource = source;
+			_getSceneItems();
+			auto pos = QCursor::pos();
+			QScopedPointer<QMenu> popup(_CreateParentSceneMenu());
+			if (popup) {
+				popup->exec(pos);
 			}
-		});
+			});
+		connect(itemDelegate, &QuickAccessSourceDelegate::itemSelected, this, [this, i](const QModelIndex& index) {
+			if (_dock->GetType() != "Manual") {
+				return;
+			}
+			_activeIndex = i;
+			size_t numRows = index.model()->rowCount();
+			size_t currentRow = index.row();
+			_actionRemoveSource->setEnabled(true);
+			_actionSourceUp->setEnabled(currentRow > 0);
+			_actionSourceDown->setEnabled(currentRow < numRows - 1);
+
+			for (auto x : _actionsToolbar->actions()) {
+				auto widget = _actionsToolbar->widgetForAction(x);
+
+				if (!widget) {
+					continue;
+				}
+				widget->style()->unpolish(widget);
+				widget->style()->polish(widget);
+			}
+			});
+		if (_dock->ClickableScenes()) {
+			connect(itemDelegate, &QuickAccessSourceDelegate::activateScene, this, [this](const QModelIndex& index) {
+				const QuickAccessSourceModel* model = dynamic_cast<const QuickAccessSourceModel*>(index.model());
+				QuickAccessSource* source = model->item(index.row());
+				source->activateScene();
+				});
+		}
+		lcLayout->addWidget(qa.listView);
+		++i;
+	}
+
+	QWidget* lSpacer = new QWidget(this);
+	lSpacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	lcLayout->addWidget(lSpacer);
+	listsWidget->setLayout(lcLayout);
+	_listsContainer->setWidget(listsWidget);
 }
 
-void QuickAccess::_LoadDynamicScenes()
+void QuickAccess::paintEvent(QPaintEvent*)
 {
-	if (!_active || !_sourceList) {
-		return;
-	}
-	_dynamicScenes.clear();
-	_sourceList->clear();
-
-	//obs_source_t *dsk = obs_get_output_source(8);
-	//const char *dsk_name = obs_source_get_name(dsk);
-	//obs_source_release(dsk);
-	obs_source_t *current = obs_weak_source_get_source(_current);
-	obs_scene_t *currentScene = obs_scene_from_source(current);
-	obs_scene_enum_items(currentScene, QuickAccess::DynAddSceneItems, this);
-	for (auto &sceneName : _dynamicScenes) {
-		AddSource(sceneName.c_str());
-	}
-	obs_source_release(current);
+	QStyleOption opt;
+	opt.initFrom(this);
+	QPainter p(this);
+	style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
-bool QuickAccess::DynAddSceneItems(obs_scene_t *scene,
-				   obs_sceneitem_t *sceneItem, void *data)
+void QuickAccess::SearchFocus()
+{
+	if (_searchText) {
+		_searchText->setFocus();
+		_searchText->selectAll();
+	}
+}
+
+void QuickAccess::ClearSelections(QuickAccessSourceList* skip)
+{
+	for (auto& qa : _qaLists) {
+		if (qa.listView != skip) {
+			qa.listView->clearSelection();
+		}
+	}
+}
+
+void QuickAccess::_clearSceneItems()
+{
+	for (auto& sceneItem : _sceneItems) {
+		obs_sceneitem_release(sceneItem);
+	}
+	_sceneItems.clear();
+}
+
+void QuickAccess::_getSceneItems()
+{
+	_clearSceneItems();
+	obs_enum_scenes(QuickAccess::GetSceneItemsFromScene, this);
+}
+
+bool QuickAccess::GetSceneItemsFromScene(void* data, obs_source_t* s)
+{
+	obs_scene_t* scene = obs_scene_from_source(s);
+	obs_scene_enum_items(scene, QuickAccess::AddSceneItems, data);
+	return true;
+}
+
+bool QuickAccess::AddSceneItems(obs_scene_t* scene,
+	obs_sceneitem_t* sceneItem, void* data)
 {
 	UNUSED_PARAMETER(scene);
-	QuickAccess *qa = static_cast<QuickAccess *>(data);
-	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
-	std::string sourceName = obs_source_get_name(source);
-	if (qa->_dynamicScenes.count(sourceName) == 0) {
-		qa->_dynamicScenes.insert(sourceName);
-		if (obs_source_is_scene(source)) {
-			obs_scene_t *currentScene =
-				obs_scene_from_source(source);
-			obs_scene_enum_items(currentScene,
-					     QuickAccess::DynAddSceneItems,
-					     data);
-		} else if (obs_source_is_group(source)) {
-			obs_scene_t *currentGroup =
-				obs_group_from_source(source);
-			obs_scene_enum_items(currentGroup,
-					     QuickAccess::DynAddSceneItems,
-					     data);
-		}
+
+	auto qa = static_cast<QuickAccess*>(data);
+	auto source = obs_sceneitem_get_source(sceneItem);
+	if (obs_source_is_group(source)) {
+		obs_scene_t* group = obs_group_from_source(source);
+		obs_scene_enum_items(group, QuickAccess::AddSceneItems,
+			data);
+	}
+	if (qa->_currentSource->isSource(source)) {
+		obs_sceneitem_addref(sceneItem);
+		qa->_sceneItems.push_back(sceneItem);
 	}
 	return true;
 }
 
-void QuickAccess::ItemAddedToScene(void *data, calldata_t *params)
+QMenu* QuickAccess::_CreateParentSceneMenu()
 {
-	blog(LOG_INFO, "Item added to scene");
-	UNUSED_PARAMETER(params);
-	QuickAccess *qa = static_cast<QuickAccess *>(data);
-	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(),
-				  [qa]() { qa->_LoadDynamicScenes(); });
-}
+	QMenu* popup = new QMenu("SceneMenu", this);
 
-void QuickAccess::ItemRemovedFromScene(void *data, calldata_t *params)
-{
-	QuickAccess *qa = static_cast<QuickAccess *>(data);
-	blog(LOG_INFO, "Item removed from scene");
-	UNUSED_PARAMETER(params);
-	QMetaObject::invokeMethod(QCoreApplication::instance()->thread(),
-				  [qa]() {
-					  if (qa->_active) {
-						  qa->_LoadDynamicScenes();
-					  }
-				  });
+	auto wa = new QWidgetAction(popup);
+	auto t = new QLineEdit;
+	t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
+		foreach(auto action, popup->actions()) action->setVisible(
+			action->text().isEmpty() ||
+			action->text().contains(text, Qt::CaseInsensitive));
+		});
+	wa->setDefaultWidget(t);
+	popup->addAction(wa);
+	popup->setStyleSheet("QMenu { menu-scrollable: 1; }");
+	auto getActionAfter = [](QMenu* menu, const QString& name) {
+		QList<QAction*> actions = menu->actions();
+
+		for (QAction* menuAction : actions) {
+			if (menuAction->text().compare(
+				name, Qt::CaseInsensitive) >= 0)
+				return menuAction;
+		}
+
+		return (QAction*)nullptr;
+	};
+
+	auto addSource = [this, getActionAfter](QMenu* pop,
+		obs_sceneitem_t* sceneItem) {
+			auto scene = obs_sceneitem_get_scene(sceneItem);
+			obs_source_t* sceneSource = obs_scene_get_source(scene);
+			const char* name = obs_source_get_name(sceneSource);
+			QString qname = name;
+
+			QWidgetAction* popupItem = new QWidgetAction(this);
+			QWidget* itemWidget = new QuickAccessSceneItem(this, sceneItem);
+			popupItem->setDefaultWidget(itemWidget);
+			popupItem->setParent(pop);
+
+			connect(popupItem, &QWidgetAction::triggered, this,
+				[this, name]() {
+					obs_source_t* sceneClicked =
+						obs_get_source_by_name(name);
+					if (obs_frontend_preview_program_mode_active()) {
+						obs_frontend_set_current_preview_scene(
+							sceneClicked);
+					}
+					else {
+						obs_frontend_set_current_scene(
+							sceneClicked);
+					}
+
+					obs_source_release(sceneClicked);
+				});
+
+			QAction* after = getActionAfter(pop, qname);
+			pop->insertAction(after, popupItem);
+			return true;
+	};
+	for (auto& src : _sceneItems) {
+		addSource(popup, src);
+	}
+
+	connect(popup, &QMenu::hovered, this, [popup](QAction* act) {
+		QList<QWidgetAction*> menuActions =
+			popup->findChildren<QWidgetAction*>();
+		for (auto menuAction : menuActions) {
+			auto widget = static_cast<QuickAccessSceneItem*>(
+				menuAction->defaultWidget());
+			widget->setHighlight(menuAction == act);
+		}
+	});
+
+	return popup;
 }
 
 void QuickAccess::Save(obs_data_t *saveObj)
 {
-	auto itemsArr = obs_data_array_create();
+	
 	blog(LOG_INFO, "SAVING");
 	if (_dock->GetType() == "Manual") {
-		for (int i = 0; i < _sourceList->count(); ++i) {
+		auto itemsArr = obs_data_array_create();
+		auto& displayGroups = _dock->DisplayGroups();
+		if (displayGroups.size() == 0) {
+			return;
+		}
+		auto& dg = displayGroups[0];
+		for (auto &source : dg.sources2) {
 			auto itemObj = obs_data_create();
-			QListWidgetItem *item = _sourceList->item(i);
-			QuickAccessItem *widget =
-				dynamic_cast<QuickAccessItem *>(
-					_sourceList->itemWidget(item));
-			widget->Save(itemObj);
+			source->save(itemObj);
 			obs_data_array_push_back(itemsArr, itemObj);
 			obs_data_release(itemObj);
 		}
+		obs_data_set_array(saveObj, "dock_sources", itemsArr);
+		obs_data_array_release(itemsArr);
 	}
-	obs_data_set_array(saveObj, "dock_sources", itemsArr);
-	obs_data_array_release(itemsArr);
+	
 }
 
-void QuickAccess::Load(obs_data_t *loadObj)
+void QuickAccess::Redraw()
 {
-	if (_dock->GetType() == "Manual") {
-		obs_data_array_t *items =
-			obs_data_get_array(loadObj, "dock_sources");
-		auto numItems = obs_data_array_count(items);
-		for (size_t i = 0; i < numItems; i++) {
-			auto item = obs_data_array_item(items, i);
-			auto sourceName =
-				obs_data_get_string(item, "source_name");
-			AddSource(sourceName);
-			obs_data_release(item);
+	for (auto& qa : _qaLists) {
+		qa.listView->repaint();
+	}
+}
+
+void QuickAccess::Load()
+{
+	if (_dock->GetType() == "Dynamic") {
+		_createListContainer();
+	}
+}
+
+void QuickAccess::UpdateVisibility()
+{
+	bool active = false;
+	for (auto& group : _dock->DisplayGroups()) {
+		group.headerItem->setHidden(!group.headerVisible);
+		if (group.headerVisible) {
+			active = true;
 		}
-		obs_data_array_release(items);
-	} else if (_dock->GetType() == "Source Search") {
-		// Get all sources/scenes/groups
-		LoadAllSources();
+		for (auto& source : group.sources) {
+			source.listItem->setHidden(!source.visible);
+		}
 	}
-}
-
-void QuickAccess::LoadAllSources()
-{
-	_allSourceNames.clear();
-	_sourceList->clear();
-	obs_enum_sources(QuickAccess::AddSourceName, this);
-	obs_enum_scenes(QuickAccess::AddSourceName, this);
-	for (auto &name : _allSourceNames) {
-		AddSource(name.c_str(), true);
+	if (_noSearch) {
+		_contents->setCurrentIndex(1);
+		return;
 	}
-	QString text = _searchText->text();
-	for (int i = 0; i < _sourceList->count(); i++) {
-		QListWidgetItem *item = _sourceList->item(i);
-		QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
-			_sourceList->itemWidget(item));
-		QString name = widget->GetSourceName();
-		item->setHidden(text.isEmpty() ||
-				!name.contains(text, Qt::CaseInsensitive));
-	}
+	_contents->setCurrentIndex(active ? 0 : 4);
 }
 
 bool QuickAccess::AddSourceName(void *data, obs_source_t *source)
@@ -905,35 +1315,35 @@ bool QuickAccess::AddSourceName(void *data, obs_source_t *source)
 	return true;
 }
 
-void QuickAccess::SetItemsButtonVisibility()
+void QuickAccess::AddSource(QuickAccessSource* source, std::string groupName)
 {
-	for (int i = 0; i < _sourceList->count(); i++) {
-		QListWidgetItem *item = _sourceList->item(i);
-		auto widget = dynamic_cast<QuickAccessItem *>(
-			_sourceList->itemWidget(item));
-		widget->SetButtonVisibility();
+	auto it = std::find_if(_qaLists.begin(), _qaLists.end(), [groupName](QuickAccessSourceListView const& list) {
+		return list.header == groupName;
+	});
+	if (it != _qaLists.end()) {
+		// Add the new thing.
+		it->model->addSource(source);
+		it->listView->setVisible(true);
+		it->listView->updateGeometry();
 	}
 }
 
-void QuickAccess::AddSource(const char *sourceName, bool hidden)
+void QuickAccess::RemoveSource(QuickAccessSource* source, std::string groupName)
 {
-	obs_source_t *source = obs_get_source_by_name(sourceName);
-	auto item = new QListWidgetItem();
-	item->setHidden(hidden);
-	_sourceList->addItem(item);
-	auto row = new QuickAccessItem(this, _dock, source);
-	_sourceList->setItemWidget(item, row);
-	obs_source_release(source);
+	auto it = std::find_if(_qaLists.begin(), _qaLists.end(), [groupName](QuickAccessSourceListView const& list) {
+		return list.header == groupName;
+	});
+	if (it != _qaLists.end()) {
+		it->model->removeSource(source);
+		it->listView->updateGeometry();
+	}
 }
 
-void QuickAccess::AddSourceAtIndex(const char *sourceName, int index)
+void QuickAccess::SetItemsButtonVisibility()
 {
-	obs_source_t *source = obs_get_source_by_name(sourceName);
-	auto item = new QListWidgetItem();
-	_sourceList->insertItem(index, item);
-	auto row = new QuickAccessItem(this, _dock, source);
-	_sourceList->setItemWidget(item, row);
-	obs_source_release(source);
+	for (auto& qa : _qaLists) {
+		qa.listView->repaint();
+	}
 }
 
 void QuickAccess::AddSourceMenuItem(obs_source_t *source)
@@ -944,6 +1354,12 @@ void QuickAccess::AddSourceMenuItem(obs_source_t *source)
 void QuickAccess::_ClearMenuSources()
 {
 	_menuSources.clear();
+}
+
+void QuickAccess::DismissModal()
+{
+	if (_dock)
+		_dock->DismissModal();
 }
 
 QDialog *QuickAccess::CreateAddSourcePopupMenu()
@@ -1060,6 +1476,9 @@ QDialog *QuickAccess::CreateAddSourcePopupMenu()
 		auto item = _sourceList->item(i);
 		auto widget = dynamic_cast<QuickAccessItem *>(
 			_sourceList->itemWidget(item));
+		if (!widget) {
+			continue;
+		}
 		const char *sourceName = widget->GetSourceName();
 		_manualSourceNames.push_back(sourceName);
 	}
@@ -1161,7 +1580,11 @@ QDialog *QuickAccess::CreateAddSourcePopupMenu()
 				auto sceneName = item->text();
 				std::string sceneNameStr =
 					sceneName.toStdString();
-				AddSourceAtIndex(sceneNameStr.c_str(), i);
+				obs_source_t* source = obs_get_source_by_name(sceneNameStr.c_str());
+				std::string uuid = obs_source_get_uuid(source);
+				auto qaSource = qau->GetSource(uuid);
+				obs_source_release(source);
+				_dock->AddSource(qaSource, i);
 			}
 			popup->accept();
 		});
@@ -1185,13 +1608,14 @@ void QuickAccess::on_actionAddSource_triggered()
 
 void QuickAccess::on_actionRemoveSource_triggered()
 {
-	auto item = _sourceList->currentItem();
-	if (!item)
+	auto& qa = _qaLists[_activeIndex];
+
+	auto source = qa.listView->currentSource();
+
+	if (!source)
 		return;
 
-	QuickAccessItem *widget =
-		dynamic_cast<QuickAccessItem *>(_sourceList->itemWidget(item));
-	std::string sourceName = widget->GetSourceName();
+	std::string sourceName = source->getName();
 	std::string dockName = _dock->GetName();
 	std::string message = "Are you sure you want to remove " + sourceName +
 			      " from " + dockName + "?";
@@ -1202,9 +1626,7 @@ void QuickAccess::on_actionRemoveSource_triggered()
 	confirm.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
 	int ret = confirm.exec();
 	if (ret == QMessageBox::Yes) {
-		_sourceList->setCurrentItem(nullptr);
-		_sourceList->removeItemWidget(item);
-		delete item;
+		_dock->RemoveSource(source);
 	}
 }
 
@@ -1218,40 +1640,52 @@ void QuickAccess::on_actionDockProperties_triggered()
 
 void QuickAccess::on_actionSourceUp_triggered()
 {
-	int index = _sourceList->currentRow();
-	if (index == -1) {
+	if (_qaLists.size() == 0) {
 		return;
 	}
-	_sourceList->blockSignals(true);
+	auto qa = _qaLists[0];
+	auto model = qa.model;
+	auto index = qa.listView->currentIndex();
+	auto newRow = index.row() - 1;
+	model->swapRows(index.row(), newRow);
+	auto newIdx = model->index(newRow);
+	qa.listView->setCurrentIndex(newIdx);
+	_actionSourceUp->setEnabled(newIdx.row() != 0);
+	_actionSourceDown->setEnabled(newIdx.row() < model->rowCount() - 1);
+	for (auto x : _actionsToolbar->actions()) {
+		auto widget = _actionsToolbar->widgetForAction(x);
 
-	QListWidgetItem *widgetItem = _sourceList->item(index);
-	QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
-		_sourceList->itemWidget(widgetItem));
-	const char *sourceName = widget->GetSourceName();
-	QListWidgetItem *toDelete = _sourceList->takeItem(index);
-	AddSourceAtIndex(sourceName, index - 1);
-	_sourceList->blockSignals(false);
-	_sourceList->setCurrentRow(index - 1);
-	delete toDelete;
+		if (!widget) {
+			continue;
+		}
+		widget->style()->unpolish(widget);
+		widget->style()->polish(widget);
+	}
 }
 
 void QuickAccess::on_actionSourceDown_triggered()
 {
-	int index = _sourceList->currentRow();
-	if (index == -1) {
+	if (_qaLists.size() == 0) {
 		return;
 	}
-	_sourceList->blockSignals(true);
+	auto qa = _qaLists[0];
+	auto model = qa.model;
+	auto index = qa.listView->currentIndex();
+	auto newRow = index.row() + 1;
+	model->swapRows(index.row(), newRow);
+	auto newIdx = model->index(newRow);
+	qa.listView->setCurrentIndex(newIdx);
+	_actionSourceUp->setEnabled(newIdx.row() != 0);
+	_actionSourceDown->setEnabled(newIdx.row() < model->rowCount() - 1);
+	for (auto x : _actionsToolbar->actions()) {
+		auto widget = _actionsToolbar->widgetForAction(x);
 
-	QListWidgetItem *widgetItem = _sourceList->item(index);
-	QuickAccessItem *widget = dynamic_cast<QuickAccessItem *>(
-		_sourceList->itemWidget(widgetItem));
-	const char *sourceName = widget->GetSourceName();
-	QListWidgetItem *toDelete = _sourceList->takeItem(index);
-	AddSourceAtIndex(sourceName, index + 1);
-	_sourceList->blockSignals(false);
-	_sourceList->setCurrentRow(index + 1);
-	delete toDelete;
+		if (!widget) {
+			continue;
+		}
+		widget->style()->unpolish(widget);
+		widget->style()->polish(widget);
+	}
 }
 
 void QuickAccess::updateEnabled()
@@ -1315,7 +1749,6 @@ void QuickAccess::RemoveNullSources()
 	if (!_active) {
 		return;
 	}
-	blog(LOG_INFO, "SIZE OF LIST BEFORE: %i", _sourceList->count());
 	std::vector<QListWidgetItem *> toDelete;
 	for (int i = 0; i < _sourceList->count(); i++) {
 		QListWidgetItem *item = _sourceList->item(i);
@@ -1331,19 +1764,15 @@ void QuickAccess::RemoveNullSources()
 		delete item;
 	}
 	_sourceList->update();
-	blog(LOG_INFO, "SIZE OF LIST AFTER: %i", _sourceList->count());
 }
 
-void QuickAccess::SourceRename(obs_source_t *source)
+void QuickAccess::SourceRename(QListWidgetItem * item)
 {
-	for (int i = 0; i < _sourceList->count(); i++) {
-		QListWidgetItem *item = _sourceList->item(i);
 		auto widget = dynamic_cast<QuickAccessItem *>(
 			_sourceList->itemWidget(item));
-		if (widget && widget->IsSource(source)) {
+		if (widget) {
 			widget->UpdateLabel();
 		}
-	}
 }
 
 QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
@@ -1443,13 +1872,6 @@ void QuickAccessSceneItem::on_actionTransform_triggered()
 {
 	obs_frontend_open_sceneitem_edit_transform(_sceneItem);
 }
-
-//void QuickAccessSceneItem::mouseReleaseEvent(QMouseEvent *e)
-//{
-//	// This is to suppress mouse event propegating down
-//	// to QMenu.
-//	UNUSED_PARAMETER(e);
-//}
 
 void QuickAccessSceneItem::setHighlight(bool h)
 {
@@ -1560,3 +1982,10 @@ bool AddSourceToWidget(void *data, obs_source_t *source)
 	qa->AddSourceMenuItem(source);
 	return true;
 }
+
+void EnumerateFilters(obs_source_t* parentScene, obs_source_t* filter, void* param)
+{
+	std::vector<obs_source_t*>* filters = static_cast<std::vector<obs_source_t*>*>(param);
+	filters->push_back(filter);
+}
+
