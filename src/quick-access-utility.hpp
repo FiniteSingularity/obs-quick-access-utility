@@ -52,10 +52,10 @@ public:
 	inline std::vector<QuickAccessDock *> GetDocks() { return _docks; }
 	inline bool SourceCloneInstalled() { return _sourceCloneInstalled; }
 	inline bool dskInstalled() { return _dskInstalled; }
-	inline QuickAccessSource* GetCurrentScene() { return _currentScene; }
+	inline QuickAccessSource *GetCurrentScene() { return _currentScene; }
 
-	QuickAccessSource* GetSource(std::string);
-	std::vector<QuickAccessSource*> GetAllSources();
+	QuickAccessSource *GetSource(std::string);
+	std::vector<QuickAccessSource *> GetAllSources();
 
 	obs_module_t *GetModule();
 	bool mainWindowOpen = false;
@@ -63,7 +63,7 @@ public:
 	bool loaded = false;
 
 	QuickAccessUtilityDialog *dialog = nullptr;
-	QuickAccessSearchModal* searchDialog = nullptr;
+	QuickAccessSearchModal *searchDialog = nullptr;
 
 	QIcon GetIconFromType(const char *type) const;
 	QIcon GetSceneIcon() const;
@@ -75,11 +75,13 @@ public:
 	static void SourceCreated(void *data, calldata_t *params);
 	static void SourceDestroyed(void *data, calldata_t *params);
 	static void SourceRename(void *data, calldata_t *params);
-	static void SourceUpdate(void* data, calldata_t* params);
+	static void SourceUpdate(void *data, calldata_t *params);
 	static void CheckModule(void *data, obs_module_t *module);
-	static bool AddSource(void* data, obs_source_t* source);
-	static bool LinkScenes(void* data, obs_source_t* source);
-	static bool LinkSceneItem(obs_scene_t* scene, obs_sceneitem_t* sceneItem, void* data);
+	static bool AddSource(void *data, obs_source_t *source);
+	static bool LinkScenes(void *data, obs_source_t *source);
+	static bool LinkSceneItem(obs_scene_t *scene,
+				  obs_sceneitem_t *sceneItem, void *data);
+
 private:
 	void _SetupSignals();
 	void _TearDownSignals();
@@ -87,7 +89,7 @@ private:
 	obs_module_t *_module = nullptr;
 	std::vector<QuickAccessDock *> _docks;
 	std::map<std::string, std::unique_ptr<QuickAccessSource>> _allSources;
-	QuickAccessSource* _currentScene = nullptr;
+	QuickAccessSource *_currentScene = nullptr;
 	bool _firstRun;
 	bool _sceneCollectionChanging = true;
 	bool _sourceCloneInstalled = false;
@@ -126,15 +128,17 @@ private slots:
 class QuickAccessSearchModal : public QDialog {
 	Q_OBJECT
 public:
-	QuickAccessSearchModal(QWidget* parent = nullptr);
+	QuickAccessSearchModal(QWidget *parent = nullptr);
 	~QuickAccessSearchModal();
-	static void OpenQuickSearch(void* data, obs_hotkey_id id, obs_hotkey_t* hotkey, bool pressed);
-	static QuickAccessSearchModal* dialog;
+	static void OpenQuickSearch(void *data, obs_hotkey_id id,
+				    obs_hotkey_t *hotkey, bool pressed);
+	static QuickAccessSearchModal *dialog;
 	void SearchFocus();
 	void InitializeSearch();
+
 private:
 	QLayout *_layout = nullptr;
-	QuickAccessDock* _widget = nullptr;
+	QuickAccessDock *_widget = nullptr;
 };
 
 class QuickAccessUtilityDialog : public QDialog {
@@ -164,6 +168,7 @@ class DockListItem : public QFrame {
 	Q_OBJECT
 public:
 	DockListItem(QuickAccessDock *dock, QWidget *parent = nullptr);
+
 private:
 	QuickAccessDock *_dock;
 	QLayout *_layout = nullptr;

@@ -12,23 +12,27 @@
 #include <algorithm>
 #include "version.h"
 
-extern QuickAccessUtility* qau;
+extern QuickAccessUtility *qau;
 
-const std::vector<SearchType> SearchTypes{ SearchType::Source, SearchType::Type, SearchType::File, SearchType::Url, SearchType::Filters };
+const std::vector<SearchType> SearchTypes{SearchType::Source, SearchType::Type,
+					  SearchType::File, SearchType::Url,
+					  SearchType::Filters};
 const std::map<SearchType, std::string> SearchTypeNames{
 	{SearchType::Source, "Source"},
 	{SearchType::Type, "Source Type"},
 	{SearchType::File, "File Path"},
 	{SearchType::Url, "URL"},
-	{SearchType::Filters, "Filters"}
-};
+	{SearchType::Filters, "Filters"}};
 
-bool operator==(const SourceVisibility& lhs, const QuickAccessSource* rhs) {
+bool operator==(const SourceVisibility &lhs, const QuickAccessSource *rhs)
+{
 	return lhs.source == rhs;
 }
 
-QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData, bool modal)
-	: QFrame(parent), _modal(modal)
+QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
+				 bool modal)
+	: QFrame(parent),
+	  _modal(modal)
 {
 	const auto mainWindow =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
@@ -45,12 +49,13 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData, bool moda
 	InitializeSearch();
 
 	if (_dockType == "Manual") {
-		obs_data_array_t* items =
+		obs_data_array_t *items =
 			obs_data_get_array(obsData, "dock_sources");
 		auto numItems = obs_data_array_count(items);
 		for (size_t i = 0; i < numItems; i++) {
 			auto item = obs_data_array_item(items, i);
-			auto sourceName = obs_data_get_string(item, "source_name");
+			auto sourceName =
+				obs_data_get_string(item, "source_name");
 			auto source = obs_get_source_by_name(sourceName);
 			std::string id = obs_source_get_uuid(source);
 			_sources.push_back(qau->GetSource(id));
@@ -58,21 +63,22 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData, bool moda
 			obs_data_release(item);
 		}
 		std::vector<SourceVisibility> sourceStates;
-		for (auto& source : _sources) {
-			sourceStates.push_back({ source, nullptr, true });
+		for (auto &source : _sources) {
+			sourceStates.push_back({source, nullptr, true});
 		}
-		_displayGroups.push_back({ "Manual", SearchType::None, nullptr, false, sourceStates, _sources });
+		_displayGroups.push_back({"Manual", SearchType::None, nullptr,
+					  false, sourceStates, _sources});
 		obs_data_array_release(items);
-		for (auto& source : _sources) {
+		for (auto &source : _sources) {
 			source->addDock(this);
 		}
 	} else if (_dockType == "Dynamic") {
 		_currentScene = qau->GetCurrentScene();
 		UpdateDynamicDock(false);
 	}
-	
+
 	_widget = new QuickAccess(this, this, "quick_access_widget");
-	
+
 	setMinimumWidth(200);
 	auto l = new QVBoxLayout;
 	l->setContentsMargins(0, 0, 0, 0);
@@ -132,25 +138,27 @@ void QuickAccessDock::InitializeSearch()
 		return;
 	}
 	_sources = qau->GetAllSources();
-	std::sort(_sources.begin(), _sources.end(), [](QuickAccessSource* a, QuickAccessSource* b) {
-		return a->getName() < b->getName();
-		});
+	std::sort(_sources.begin(), _sources.end(),
+		  [](QuickAccessSource *a, QuickAccessSource *b) {
+			  return a->getName() < b->getName();
+		  });
 	std::vector<SourceVisibility> sources;
-	for (auto& source : _sources) {
+	for (auto &source : _sources) {
 		source->addDock(this);
-		sources.push_back({ source, nullptr, false });
+		sources.push_back({source, nullptr, false});
 	}
 	_displayGroups.clear();
 	_indexer.clear();
 	size_t i = 0;
-	for (auto& st : SearchTypes) {
-		_displayGroups.push_back({ SearchTypeNames.at(st), st, nullptr, false, sources, _sources });
+	for (auto &st : SearchTypes) {
+		_displayGroups.push_back({SearchTypeNames.at(st), st, nullptr,
+					  false, sources, _sources});
 		_indexer[st] = i;
 		i++;
 	}
 }
 
-void QuickAccessDock::SetCurrentScene(QuickAccessSource* currentScene)
+void QuickAccessDock::SetCurrentScene(QuickAccessSource *currentScene)
 {
 	_currentScene = currentScene;
 	if (!_ready) {
@@ -163,7 +171,8 @@ void QuickAccessDock::SetCurrentScene(QuickAccessSource* currentScene)
 	// Set up dynamic dock here.
 }
 
-void QuickAccessDock::SearchFocus() {
+void QuickAccessDock::SearchFocus()
+{
 	if (_widget) {
 		_widget->SearchFocus();
 	}
@@ -178,10 +187,7 @@ void QuickAccessDock::SetName(std::string name)
 	}
 }
 
-void QuickAccessDock::CleanupSourceHandlers()
-{
-
-}
+void QuickAccessDock::CleanupSourceHandlers() {}
 
 void QuickAccessDock::SetItemsButtonVisibility()
 {
@@ -193,14 +199,15 @@ void QuickAccessDock::SetItemsButtonVisibility()
 void QuickAccessDock::DismissModal()
 {
 	if (_modal) {
-		auto modal = dynamic_cast<QuickAccessSearchModal*>(parentWidget());
+		auto modal =
+			dynamic_cast<QuickAccessSearchModal *>(parentWidget());
 		modal->close();
 	}
 }
 
 void QuickAccessDock::_ClearSources()
 {
-	for (auto& source : _sources) {
+	for (auto &source : _sources) {
 		source->removeDock(this);
 	}
 	_sources.clear();
@@ -222,17 +229,17 @@ void QuickAccessDock::Load(obs_data_t *obsData, bool created)
 	_ClearSources();
 	if (_dockType == "Source Search") {
 		_sources = qau->GetAllSources();
-		for (auto& source : _sources) {
+		for (auto &source : _sources) {
 			source->addDock(this);
 		}
-	}
-	else if (_dockType == "Manual") {
-		obs_data_array_t* items =
+	} else if (_dockType == "Manual") {
+		obs_data_array_t *items =
 			obs_data_get_array(obsData, "dock_sources");
 		auto numItems = obs_data_array_count(items);
 		for (size_t i = 0; i < numItems; i++) {
 			auto item = obs_data_array_item(items, i);
-			auto sourceName = obs_data_get_string(item, "source_name");
+			auto sourceName =
+				obs_data_get_string(item, "source_name");
 			auto source = obs_get_source_by_name(sourceName);
 			std::string id = obs_source_get_uuid(source);
 			auto qas = qau->GetSource(id);
@@ -243,7 +250,6 @@ void QuickAccessDock::Load(obs_data_t *obsData, bool created)
 		}
 		obs_data_array_release(items);
 	}
-
 
 	//_widget->setHidden(true);
 	//_widget->Load();
@@ -278,27 +284,27 @@ void QuickAccessDock::Load(obs_data_t *obsData, bool created)
 
 void QuickAccessDock::Search(std::string searchTerm)
 {
-	for (auto& source : _sources) {
+	for (auto &source : _sources) {
 		source->BuildSearchTerms();
 	}
-	for (auto& dg : _displayGroups) {
+	for (auto &dg : _displayGroups) {
 		dg.headerVisible = false;
-		for (auto& source : dg.sources) {
+		for (auto &source : dg.sources) {
 			source.visible = false;
 		}
 	}
 	size_t i = 0;
-	for (auto& source : _sources) {
-		for (auto& st : source->search(searchTerm)) {
+	for (auto &source : _sources) {
+		for (auto &st : source->search(searchTerm)) {
 			_displayGroups[_indexer[st]].sources[i].visible = true;
 			_displayGroups[_indexer[st]].headerVisible = true;
 		}
 		i++;
 	}
 	if (_widget) {
-		QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), [this]() {
-			_widget->UpdateVisibility();
-		});
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[this]() { _widget->UpdateVisibility(); });
 	}
 }
 
@@ -382,15 +388,9 @@ void QuickAccessDock::SourceCreated(QuickAccessSource *source)
 	}
 }
 
-void QuickAccessDock::SourceDestroyed()
-{
+void QuickAccessDock::SourceDestroyed() {}
 
-}
-
-void QuickAccessDock::SourceUpdate()
-{
-
-}
+void QuickAccessDock::SourceUpdate() {}
 
 void QuickAccessDock::SourceRename(QuickAccessSource *source)
 {
@@ -401,17 +401,19 @@ void QuickAccessDock::SourceRename(QuickAccessSource *source)
 	_widget->Redraw();
 }
 
-void QuickAccessDock::RemoveSource(QuickAccessSource* source, bool removeDock)
+void QuickAccessDock::RemoveSource(QuickAccessSource *source, bool removeDock)
 {
 	std::unique_lock lock(_m);
-	for (auto& group : _displayGroups) {
-		auto it = std::find(group.sources.begin(), group.sources.end(), source);
+	for (auto &group : _displayGroups) {
+		auto it = std::find(group.sources.begin(), group.sources.end(),
+				    source);
 		if (it != group.sources.end()) {
 			_widget->RemoveSource(source, group.name);
 			group.sources.erase(it);
 		}
 	}
-	if (auto it = std::find(_sources.begin(), _sources.end(), source); it != _sources.end()) {
+	if (auto it = std::find(_sources.begin(), _sources.end(), source);
+	    it != _sources.end()) {
 		_sources.erase(it);
 	}
 	if (removeDock) {
@@ -419,19 +421,22 @@ void QuickAccessDock::RemoveSource(QuickAccessSource* source, bool removeDock)
 	}
 }
 
-void QuickAccessDock::AddSource(QuickAccessSource* source, int index)
+void QuickAccessDock::AddSource(QuickAccessSource *source, int index)
 {
 	if (_dockType == "Manual") {
-		if (std::find(_sources.begin(), _sources.end(), source) != _sources.end()) {
+		if (std::find(_sources.begin(), _sources.end(), source) !=
+		    _sources.end()) {
 			return;
 		}
 		if (index == -1) {
 			_sources.push_back(source);
-			_displayGroups[0].sources.push_back({ source, nullptr, true });
-		}
-		else {
+			_displayGroups[0].sources.push_back(
+				{source, nullptr, true});
+		} else {
 			_sources.insert(_sources.begin() + index, source);
-			_displayGroups[0].sources.insert(_displayGroups[0].sources.begin() + index, { source, nullptr, true });
+			_displayGroups[0].sources.insert(
+				_displayGroups[0].sources.begin() + index,
+				{source, nullptr, true});
 		}
 		_widget->AddSource(source, _displayGroups[0].name);
 		source->addDock(this);
@@ -448,7 +453,7 @@ void QuickAccessDock::AddSource(QuickAccessSource* source, int index)
 		_sources.insert(sIt, source);
 
 		// Then add to each of the search display groups.
-		for (auto& dg : _displayGroups) {
+		for (auto &dg : _displayGroups) {
 			auto it = dg.sources.begin();
 
 			// Find location to insert
@@ -459,7 +464,7 @@ void QuickAccessDock::AddSource(QuickAccessSource* source, int index)
 				it++;
 			}
 			int index = it - dg.sources.begin();
-			dg.sources.insert(it, { source, nullptr, false });
+			dg.sources.insert(it, {source, nullptr, false});
 			_widget->AddSource(source, dg.name);
 		}
 		source->addDock(this);
@@ -472,26 +477,30 @@ void QuickAccessDock::UpdateDynamicDock(bool updateWidget)
 	if (_currentScene) {
 		// _currentScene is not set up with links to children.
 		// so grab the fully populated version from qau->GetSource
-		QuickAccessSource* cur = qau->GetSource(_currentScene->getUUID());
+		QuickAccessSource *cur =
+			qau->GetSource(_currentScene->getUUID());
 		_AddToDynDock(cur);
 	}
 	_displayGroups.clear();
 	//_displayGroups.push_back({ "DSK" });
 	std::vector<SourceVisibility> sourceStates;
-	for (auto& source : _sources) {
-		sourceStates.push_back({ source, nullptr, true });
+	for (auto &source : _sources) {
+		sourceStates.push_back({source, nullptr, true});
 	}
-	_displayGroups.push_back({ "Scene", SearchType::None, nullptr, true, sourceStates, _sources });
+	_displayGroups.push_back({"Scene", SearchType::None, nullptr, true,
+				  sourceStates, _sources});
 	if (updateWidget) {
-		QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), [this]() {
-			_widget->Load();
-		});
+		QMetaObject::invokeMethod(
+			QCoreApplication::instance()->thread(),
+			[this]() { _widget->Load(); });
 	}
 }
 
-void QuickAccessDock::_AddToDynDock(QuickAccessSource* scene) {
-	for (auto& source : scene->children()) {
-		if (std::find(_sources.begin(), _sources.end(), source) == _sources.end()) {
+void QuickAccessDock::_AddToDynDock(QuickAccessSource *scene)
+{
+	for (auto &source : scene->children()) {
+		if (std::find(_sources.begin(), _sources.end(), source) ==
+		    _sources.end()) {
 			_sources.push_back(source);
 			source->addDock(this);
 			if (source->sourceType() != SourceClass::Source) {
