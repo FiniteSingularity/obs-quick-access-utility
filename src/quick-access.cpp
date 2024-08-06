@@ -1125,15 +1125,15 @@ void QuickAccess::_createListContainer()
 							      numRows - 1);
 
 				for (auto x : _actionsToolbar->actions()) {
-					auto widget =
+					auto wdgt =
 						_actionsToolbar->widgetForAction(
 							x);
 
-					if (!widget) {
+					if (!wdgt) {
 						continue;
 					}
-					widget->style()->unpolish(widget);
-					widget->style()->polish(widget);
+					wdgt->style()->unpolish(wdgt);
+					wdgt->style()->polish(wdgt);
 				}
 			});
 		if (_dock->ClickableScenes()) {

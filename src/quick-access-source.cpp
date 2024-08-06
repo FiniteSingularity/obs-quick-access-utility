@@ -320,7 +320,7 @@ void QuickAccessSourceModel::removeSource(QuickAccessSource *source)
 	if (it == _data->end()) {
 		return;
 	}
-	int idx = it - _data->begin();
+	int idx = static_cast<int>(it - _data->begin());
 	beginRemoveRows(QModelIndex(), idx, idx);
 	_data->erase(it);
 	endRemoveRows();

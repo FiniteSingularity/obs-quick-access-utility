@@ -203,11 +203,10 @@ void QuickAccessUtility::Load(obs_data_t *data)
 		QuickAccessSearchModal::dialog =
 			new QuickAccessSearchModal(static_cast<QMainWindow *>(
 				obs_frontend_get_main_window()));
-		auto searchDialog = QuickAccessSearchModal::dialog;
-		searchDialog->open();
-		searchDialog->move(hostRect.center() -
-				   searchDialog->rect().center());
-		searchDialog->adjustSize();
+		auto searchDlg = QuickAccessSearchModal::dialog;
+		searchDlg->open();
+		searchDlg->move(hostRect.center() - searchDlg->rect().center());
+		searchDlg->adjustSize();
 	}
 	_SetupSignals();
 	loaded = true;
