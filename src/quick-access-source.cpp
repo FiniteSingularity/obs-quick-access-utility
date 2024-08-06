@@ -50,7 +50,7 @@ void QuickAccessSourceDelegate::paint(QPainter* painter,
 	if(option.state & QStyle::State_Selected)
 		painter->fillRect(option.rect, option.palette.highlight());
 	if (option.state & QStyle::State_MouseOver)
-		painter->fillRect(option.rect, option.palette.accent());
+		painter->fillRect(option.rect, option.palette.highlight());
 	auto icon = item->icon();
 	QRect iconRect(rect);
 	iconRect.setWidth(22);
