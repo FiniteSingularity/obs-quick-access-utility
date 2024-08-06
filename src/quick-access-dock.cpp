@@ -394,6 +394,7 @@ void QuickAccessDock::SourceUpdate() {}
 
 void QuickAccessDock::SourceRename(QuickAccessSource *source)
 {
+	UNUSED_PARAMETER(source);
 	// Dynamic sources are handled from scene item add/delete events
 	if (_switchingSC || !_widget) {
 		return;
@@ -463,7 +464,7 @@ void QuickAccessDock::AddSource(QuickAccessSource *source, int index)
 				}
 				it++;
 			}
-			int index = it - dg.sources.begin();
+			//int index = it - dg.sources.begin();
 			dg.sources.insert(it, {source, nullptr, false});
 			_widget->AddSource(source, dg.name);
 		}
