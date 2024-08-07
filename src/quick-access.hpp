@@ -1,4 +1,9 @@
 #pragma once
+#include <vector>
+#include <map>
+#include <set>
+#include <memory>
+
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 
@@ -22,15 +27,11 @@
 #include <QLineEdit>
 #include <QScrollArea>
 
-#include <vector>
-#include <map>
-#include <set>
-#include <memory>
-
-#include "quick-access-source.hpp"
-
+enum class SearchType;
+class QuickAccessSource;
 class QuickAccess;
 class QuickAccessDock;
+class QuickAccessSourceModel;
 
 class QuickAccessSourceList : public QListView {
 	Q_OBJECT
