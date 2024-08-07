@@ -1,8 +1,11 @@
+#if !defined(_WIN32) && !define(__APPLE__)
+#include <smmintrin.h>
+#endif
+
 #include "quick-access.hpp"
 #include "quick-access-dock.hpp"
 #include "quick-access-utility.hpp"
 
-#include <obs-module.h>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -1695,7 +1698,7 @@ void QuickAccess::on_actionSourceUp_triggered()
 	if (_qaLists.size() == 0) {
 		return;
 	}
-	auto qa = _qaLists[0];
+	QuickAccessSourceListView qa = _qaLists[0];
 	auto model = qa.model;
 	auto index = qa.listView->currentIndex();
 	auto newRow = index.row() - 1;
@@ -1720,7 +1723,7 @@ void QuickAccess::on_actionSourceDown_triggered()
 	if (_qaLists.size() == 0) {
 		return;
 	}
-	auto qa = _qaLists[0];
+	QuickAccessSourceListView qa = _qaLists[0];
 	auto model = qa.model;
 	auto index = qa.listView->currentIndex();
 	auto newRow = index.row() + 1;
