@@ -1,4 +1,4 @@
-#if !defined(_WIN32) && !define(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__)
 #include <smmintrin.h>
 #endif
 
