@@ -68,8 +68,8 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OBS::${OBS_FRONTEND_API_NAME})
 
-find_package(Qt6 COMPONENTS Widgets Core)
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
+find_package(Qt6 COMPONENTS Widgets Core Concurrent)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Concurrent)
 target_compile_options(${PROJECT_NAME}
                        PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>)
 
@@ -88,6 +88,8 @@ target_sources(
           src/quick-access-dock.hpp
           src/quick-access.cpp
           src/quick-access.hpp
+          src/quick-access-source.cpp
+          src/quick-access-source.hpp
           src/version.h)
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
