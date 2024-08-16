@@ -114,6 +114,7 @@ public:
 	inline void markForRemoval() { _removing = true; }
 	void removeParent(QuickAccessSource *parent);
 	void removeChild(QuickAccessSource *child);
+	signal_handler_t* getSignalHandler();
 	inline std::vector<QuickAccessSource *> children() { return _children; }
 	inline std::vector<QuickAccessSource *> parents() { return _parents; }
 	inline SourceClass sourceType() { return _sourceClass; }
@@ -148,6 +149,8 @@ private:
 	std::vector<QuickAccessSource *> _children;
 	std::set<QuickAccessDock *> _docks;
 	std::mutex _m;
+	// TODO: Get rid of _tmpName
+	std::string _tmpName;
 	static bool registered;
 };
 

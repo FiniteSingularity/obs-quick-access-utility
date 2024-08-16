@@ -156,7 +156,8 @@ bool QuickAccessSourceDelegate::editorEvent(QEvent *event,
 {
 	UNUSED_PARAMETER(model);
 	if (event->type() == QEvent::MouseButtonPress ||
-	    event->type() == QEvent::MouseButtonRelease) {
+	    event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::MouseButtonDblClick) {
+
 	} else {
 		//ignoring other mouse event and reseting button's state
 		_propertiesState = QStyle::State_Raised;
@@ -228,8 +229,11 @@ bool QuickAccessSourceDelegate::editorEvent(QEvent *event,
 		}
 	}
 
-	if (_dock->ClickableScenes() &&
+	if (_dock->ClickableScenes() && event->type() == QEvent::MouseButtonDblClick) {
+		blog(LOG_INFO, "DBL CLICK!!!!!");
+	} else if (_dock->ClickableScenes() &&
 	    event->type() == QEvent::MouseButtonRelease) {
+		blog(LOG_INFO, "SINGLE CLICK!!!!");
 		emit activateScene(index);
 	}
 
@@ -363,6 +367,8 @@ QuickAccessSource::QuickAccessSource(obs_source_t *source)
 		qRegisterMetaType<QuickAccessSource *>();
 	}
 	_source = obs_source_get_weak_source(source);
+	_tmpName = obs_source_get_name(source);
+	blog(LOG_INFO, "!!!!! QAS:Grabbed\t%s", _tmpName.c_str());
 	_sourceClass = obs_source_is_group(source)   ? SourceClass::Group
 		       : obs_source_is_scene(source) ? SourceClass::Scene
 						     : SourceClass::Source;
@@ -371,6 +377,7 @@ QuickAccessSource::QuickAccessSource(obs_source_t *source)
 
 QuickAccessSource::~QuickAccessSource()
 {
+	blog(LOG_INFO, "!!!!! QAS:Released\t%s", _tmpName.c_str());
 	for (auto &dock : _docks) {
 		dock->RemoveSource(this, false);
 	}
@@ -380,6 +387,7 @@ QuickAccessSource::~QuickAccessSource()
 	for (auto &child : _children) {
 		child->removeParent(this);
 	}
+	
 	obs_weak_source_release(_source);
 }
 
@@ -391,6 +399,9 @@ obs_source_t *QuickAccessSource::get()
 QIcon QuickAccessSource::icon() const
 {
 	auto source = obs_weak_source_get_source(_source);
+	if (!source) {
+		return qau->GetSceneIcon();
+	}
 	const char *id = obs_source_get_id(source);
 	obs_source_release(source);
 
@@ -399,6 +410,14 @@ QIcon QuickAccessSource::icon() const
 	else if (strcmp(id, "group") == 0)
 		return qau->GetGroupIcon();
 	return qau->GetIconFromType(id);
+}
+
+signal_handler_t* QuickAccessSource::getSignalHandler()
+{
+	auto source = obs_weak_source_get_source(_source);
+	auto signalHandler = obs_source_get_signal_handler(source);
+	obs_source_release(source);
+	return signalHandler;
 }
 
 std::string QuickAccessSource::getName() const
@@ -576,9 +595,10 @@ void QuickAccessSource::removeParent(QuickAccessSource *parent)
 	if (_parents.size() == 0) {
 		return;
 	}
-	if (auto it = std::find(_parents.begin(), _parents.end(), parent);
-	    it != _parents.end()) {
+	auto it = std::find(_parents.begin(), _parents.end(), parent);
+	while (it != _parents.end()) {
 		_parents.erase(it);
+		it = std::find(_parents.begin(), _parents.end(), parent);
 	}
 }
 
@@ -589,10 +609,10 @@ void QuickAccessSource::removeChild(QuickAccessSource *child)
 		return;
 	}
 	// Child can be added multiple times to a parent scene/group.
-	auto it = std::find(_parents.begin(), _parents.end(), child);
-	while (it != _parents.end()) {
+	auto it = std::find(_children.begin(), _children.end(), child);
+	while (it != _children.end()) {
 		_children.erase(it);
-		it = std::find(_parents.begin(), _parents.end(), child);
+		it = std::find(_children.begin(), _children.end(), child);
 	}
 }
 
@@ -674,6 +694,7 @@ std::string QuickAccessSource::activeState() const
 		auto settings = obs_source_get_settings(source);
 		bool now_active = obs_data_get_bool(settings, "active");
 		ret = now_active ? "Deactivate" : "Activate";
+		obs_data_release(settings);
 	}
 	// macos-avcapture-fast and av_capture_input on macos
 	obs_source_release(source);

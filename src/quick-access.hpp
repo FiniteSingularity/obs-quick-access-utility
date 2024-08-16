@@ -94,83 +94,6 @@ private slots:
 	void on_actionTransform_triggered();
 };
 
-class QuickAccessList : public QListWidget {
-	Q_OBJECT
-
-public:
-	QuickAccessList(QWidget *parent, QuickAccessDock *dock);
-	void dropEvent(QDropEvent *event) override;
-	void mousePressEvent(QMouseEvent *event) override;
-
-private:
-	QuickAccess *_qa = nullptr;
-	QuickAccessDock *_dock;
-};
-
-class QuickAccessItem : public QFrame {
-	Q_OBJECT
-
-public:
-	QuickAccessItem(QWidget *parent, QuickAccessDock *dock,
-			QuickAccessSource *qaSource);
-	QuickAccessItem(QWidget *parent, QuickAccessItem *original);
-	~QuickAccessItem();
-	bool Save(obs_data_t *saveObj);
-	const char *GetSourceName();
-	void RenameSource(std::string name);
-	static bool GetSceneItemsFromScene(void *data, obs_source_t *s);
-	static bool AddSceneItems(obs_scene_t *s, obs_sceneitem_t *si,
-				  void *data);
-	void SetButtonVisibility();
-	bool IsSource(obs_source_t *s);
-	bool IsSource(QuickAccessSource *s);
-	bool IsNullSource();
-	bool IsInteractive();
-	void SwitchToScene();
-	void UpdateLabel();
-
-	// Actions
-	void AddToScene(obs_source_t *scene);
-	void OpenFilters();
-	void OpenProperties();
-	void OpenInteract();
-
-	bool Configurable();
-
-	bool SearchMatch(QString term);
-
-	inline obs_source_t *GetSource()
-	{
-		return obs_weak_source_get_source(_source);
-	}
-
-private:
-	QuickAccessDock *_dock;
-	QLabel *_label = nullptr;
-	QLabel *_iconLabel = nullptr;
-
-	QPushButton *_actionProperties = nullptr;
-	QPushButton *_actionFilters = nullptr;
-	QPushButton *_actionScenes = nullptr;
-
-	QPushButton *_filters = nullptr;
-	obs_weak_source_t *_source = nullptr;
-	QuickAccessSource *_qaSource = nullptr;
-	std::vector<obs_sceneitem_t *> _sceneItems;
-	std::map<std::string, std::vector<std::string>> _searchGroups;
-	std::vector<std::string> _searchTerms;
-	bool _configurable;
-	void _getSceneItems();
-	void _clearSceneItems();
-	QMenu *_CreateSceneMenu();
-	void _SetSearchTerms();
-	void _AddScenePopupMenu(const QPoint &pos);
-
-private slots:
-	void on_actionProperties_triggered();
-	void on_actionFilters_triggered();
-	void on_actionScenes_triggered();
-};
 
 class QuickAccess : public QWidget {
 	Q_OBJECT
@@ -185,7 +108,6 @@ public:
 	void Save(obs_data_t *saveObj);
 	void AddSourceMenuItem(obs_source_t *source);
 	void SetItemsButtonVisibility();
-	void updateEnabled();
 	void Redraw();
 	void ClearSelections(QuickAccessSourceList *skip);
 	void SearchFocus();
@@ -195,13 +117,10 @@ public:
 	static bool AddSceneItems(obs_scene_t *s, obs_sceneitem_t *si,
 				  void *data);
 
-	void RemoveNullSources();
-	void SourceRename(QListWidgetItem *item);
 	virtual void paintEvent(QPaintEvent *);
 
 private:
 	QuickAccessDock *_dock;
-	QuickAccessList *_sourceList;
 	QStackedWidget *_contents;
 	QScrollArea *_listsContainer;
 	QWidget *_emptySearch;
@@ -256,7 +175,7 @@ private slots:
 	void on_actionSourceUp_triggered();
 	void on_actionSourceDown_triggered();
 	void on_actionDockProperties_triggered();
-	void on_sourceList_itemSelectionChanged();
+	//void on_sourceList_itemSelectionChanged();
 };
 
 class UpdateDockDialog : public QDialog {

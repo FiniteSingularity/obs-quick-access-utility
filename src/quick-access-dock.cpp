@@ -57,6 +57,9 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
 			auto sourceName =
 				obs_data_get_string(item, "source_name");
 			auto source = obs_get_source_by_name(sourceName);
+			if (!source) {
+				continue;
+			}
 			std::string id = obs_source_get_uuid(source);
 			_sources.push_back(qau->GetSource(id));
 			obs_source_release(source);
@@ -77,6 +80,10 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
 		UpdateDynamicDock(false);
 	}
 
+	if (!_modal) {
+		DrawDock(obsData);
+	}
+
 	_widget = new QuickAccess(this, this, "quick_access_widget");
 
 	setMinimumWidth(200);
@@ -85,41 +92,6 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
 	l->addWidget(_widget);
 	setLayout(l);
 
-	//_widget->setHidden(true);
-	//_widget->Load();
-	//_widget->setHidden(false);
-
-	if (_modal) {
-		return;
-	}
-
-	if (!_dockWidget) {
-		_InitializeDockWidget();
-	}
-
-	const auto d = static_cast<QDockWidget *>(parentWidget());
-	if (obs_data_get_bool(obsData, "dock_hidden")) {
-		d->hide();
-	} else {
-		d->show();
-	}
-
-	const auto floating = obs_data_get_bool(obsData, "dock_floating");
-	if (d->isFloating() != floating) {
-		d->setFloating(floating);
-	}
-
-	const auto area = static_cast<Qt::DockWidgetArea>(
-		obs_data_get_int(obsData, "dock_area"));
-	if (area != mainWindow->dockWidgetArea(d)) {
-		mainWindow->addDockWidget(area, d);
-	}
-
-	const char *geometry = obs_data_get_string(obsData, "dock_geometry");
-	if (geometry && strlen(geometry)) {
-		d->restoreGeometry(
-			QByteArray::fromBase64(QByteArray(geometry)));
-	}
 	_ready = true;
 }
 
@@ -216,70 +188,7 @@ void QuickAccessDock::_ClearSources()
 void QuickAccessDock::Load(obs_data_t *obsData, bool created)
 {
 	UNUSED_PARAMETER(created);
-	const auto mainWindow =
-		static_cast<QMainWindow *>(obs_frontend_get_main_window());
-
-	_dockName = obs_data_get_string(obsData, "dock_name");
-	_dockType = obs_data_get_string(obsData, "dock_type");
-	_dockId = obs_data_get_string(obsData, "dock_id");
-	_showProperties = obs_data_get_bool(obsData, "show_properties");
-	_showFilters = obs_data_get_bool(obsData, "show_filters");
-	_showScenes = obs_data_get_bool(obsData, "show_scenes");
-	_clickableScenes = obs_data_get_bool(obsData, "clickable_scenes");
-	_ClearSources();
-	if (_dockType == "Source Search") {
-		_sources = qau->GetAllSources();
-		for (auto &source : _sources) {
-			source->addDock(this);
-		}
-	} else if (_dockType == "Manual") {
-		obs_data_array_t *items =
-			obs_data_get_array(obsData, "dock_sources");
-		auto numItems = obs_data_array_count(items);
-		for (size_t i = 0; i < numItems; i++) {
-			auto item = obs_data_array_item(items, i);
-			auto sourceName =
-				obs_data_get_string(item, "source_name");
-			auto source = obs_get_source_by_name(sourceName);
-			std::string id = obs_source_get_uuid(source);
-			auto qas = qau->GetSource(id);
-			_sources.push_back(qas);
-			qas->addDock(this);
-			obs_source_release(source);
-			obs_data_release(item);
-		}
-		obs_data_array_release(items);
-	}
-
-	//_widget->setHidden(true);
-	//_widget->Load();
-	//_widget->setHidden(false);
-	if (!_dockWidget) {
-		_InitializeDockWidget();
-	}
-	const auto d = static_cast<QDockWidget *>(parentWidget());
-	if (obs_data_get_bool(obsData, "dock_hidden")) {
-		d->hide();
-	} else {
-		d->show();
-	}
-
-	const auto area = static_cast<Qt::DockWidgetArea>(
-		obs_data_get_int(obsData, "dock_area"));
-	if (area != mainWindow->dockWidgetArea(d)) {
-		mainWindow->addDockWidget(area, d);
-	}
-
-	const auto floating = obs_data_get_bool(obsData, "dock_floating");
-	if (d->isFloating() != floating) {
-		d->setFloating(floating);
-	}
-
-	const char *geometry = obs_data_get_string(obsData, "dock_geometry");
-	if (geometry && strlen(geometry)) {
-		d->restoreGeometry(
-			QByteArray::fromBase64(QByteArray(geometry)));
-	}
+	DrawDock(obsData);
 }
 
 void QuickAccessDock::Search(std::string searchTerm)
@@ -308,27 +217,42 @@ void QuickAccessDock::Search(std::string searchTerm)
 	}
 }
 
-void QuickAccessDock::_InitializeDockWidget()
+void QuickAccessDock::DrawDock(obs_data_t* obsData)
 {
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+	const auto mainWindow =
+		static_cast<QMainWindow*>(obs_frontend_get_main_window());
+
 	obs_frontend_add_dock_by_id(
 		("quick-access-dock_" + this->_dockId).c_str(),
 		this->_dockName.c_str(), this);
-#else
-	_dockWidget = new QDockWidget(
-		static_cast<QMainWindow *>(obs_frontend_get_main_window()));
-	_dockWidget->setObjectName(
-		("quick-access-dock_" + this->_dockId).c_str());
-	_dockWidget->setWindowTitle(this->_dockName.c_str());
-	_dockWidget->setWidget(this);
-	_dockWidget->setFeatures(QDockWidget::DockWidgetClosable |
-				 QDockWidget::DockWidgetMovable |
-				 QDockWidget::DockWidgetFloatable);
-	_dockWidget->setFloating(true);
-	_dockWidget->hide();
-	obs_frontend_add_dock(_dockWidget);
-#endif
 	_dockInjected = true;
+
+
+	const auto d = static_cast<QDockWidget*>(parentWidget());
+
+	const auto floating = obs_data_get_bool(obsData, "dock_floating");
+	if (d->isFloating() != floating) {
+		d->setFloating(floating);
+	}
+
+	const auto area = static_cast<Qt::DockWidgetArea>(
+		obs_data_get_int(obsData, "dock_area"));
+	if (area != mainWindow->dockWidgetArea(d)) {
+		mainWindow->addDockWidget(area, d);
+	}
+
+	const char* geometry = obs_data_get_string(obsData, "dock_geometry");
+	if (geometry && strlen(geometry)) {
+		d->restoreGeometry(
+			QByteArray::fromBase64(QByteArray(geometry)));
+	}
+
+	if (obs_data_get_bool(obsData, "dock_hidden")) {
+		d->hide();
+	}
+	else {
+		d->show();
+	}
 }
 
 void QuickAccessDock::Save(obs_data_t *obsData)
@@ -388,7 +312,12 @@ void QuickAccessDock::SourceCreated(QuickAccessSource *source)
 	}
 }
 
-void QuickAccessDock::SourceDestroyed() {}
+void QuickAccessDock::SourceDestroyed(QuickAccessSource* source) {
+	if (_dockType == "Search Source" || _dockType == "Manual") {
+		RemoveSource(source);
+	}
+	// TODO: Handle Dynamic Dock.
+}
 
 void QuickAccessDock::SourceUpdate() {}
 
@@ -478,9 +407,13 @@ void QuickAccessDock::UpdateDynamicDock(bool updateWidget)
 	if (_currentScene) {
 		// _currentScene is not set up with links to children.
 		// so grab the fully populated version from qau->GetSource
-		QuickAccessSource *cur =
-			qau->GetSource(_currentScene->getUUID());
-		_AddToDynDock(cur);
+		/*QuickAccessSource *cur =
+			qau->GetSource(_currentScene->getUUID());*/
+		//_AddToDynDock(_currentScene);
+		_sources = qau->GetCurrentSceneSources();
+		for (auto& source : _sources) {
+			source->addDock(this);
+		}
 	}
 	_displayGroups.clear();
 	//_displayGroups.push_back({ "DSK" });
