@@ -8,17 +8,25 @@
 #include <QVBoxLayout>
 #include <QListWidget>
 #include <QComboBox>
+#include <QLabel>
+#include <QCheckBox>
 #include <QToolBar>
 #include <QAction>
 #include <QDialogButtonBox>
 #include <vector>
+#include <map>
 #include <memory>
-#include "quick-access-dock.hpp"
+#include <mutex>
+#include <thread>
+
+class QuickAccessDock;
+class QuickAccessSource;
 
 class QuickAccessUtility;
 extern QuickAccessUtility *qad;
 
 class QuickAccessUtilityDialog;
+class QuickAccessSearchModal;
 
 struct CreateDockFormData {
 	std::string dockName;
@@ -38,14 +46,28 @@ public:
 	void Save(obs_data_t *data);
 	void RemoveDock(int idx, bool cleanup = false);
 	void RemoveDocks();
+	void SceneChanged();
+	void UnloadDocks();
+	void InitializeSearch();
 	inline std::vector<QuickAccessDock *> GetDocks() { return _docks; }
 	inline bool SourceCloneInstalled() { return _sourceCloneInstalled; }
 	inline bool dskInstalled() { return _dskInstalled; }
+	inline QuickAccessSource *GetCurrentScene() { return _currentScene; }
+	inline std::vector<QuickAccessSource *> GetCurrentSceneSources()
+	{
+		return _currentSceneSources;
+	}
+
+	QuickAccessSource *GetSource(std::string);
+	std::vector<QuickAccessSource *> GetAllSources();
 
 	obs_module_t *GetModule();
 	bool mainWindowOpen = false;
+	bool quickSearchOpen = false;
+	bool loaded = false;
 
 	QuickAccessUtilityDialog *dialog = nullptr;
+	QuickAccessSearchModal *searchDialog = nullptr;
 
 	QIcon GetIconFromType(const char *type) const;
 	QIcon GetSceneIcon() const;
@@ -57,15 +79,34 @@ public:
 	static void SourceCreated(void *data, calldata_t *params);
 	static void SourceDestroyed(void *data, calldata_t *params);
 	static void SourceRename(void *data, calldata_t *params);
+	static void SourceUpdate(void *data, calldata_t *params);
+	static void SourceAddedToScene(void *data, calldata_t *params);
+	static void SourceRemovedFromScene(void *data, calldata_t *params);
 	static void CheckModule(void *data, obs_module_t *module);
+	static bool AddSource(void *data, obs_source_t *source);
+	static bool LinkScenes(void *data, obs_source_t *source);
+	static bool LinkSceneItem(obs_scene_t *scene,
+				  obs_sceneitem_t *sceneItem, void *data);
 
 private:
+	void _SetupSignals();
+	void _TearDownSignals();
+	void _SetCurrentSceneSources();
+	void _AddChildren(QuickAccessSource *scene);
+
 	obs_module_t *_module = nullptr;
 	std::vector<QuickAccessDock *> _docks;
+	std::map<std::string, std::unique_ptr<QuickAccessSource>> _allSources;
+	QuickAccessSource *_currentScene = nullptr;
+	std::vector<QuickAccessSource *> _currentSceneSources;
 	bool _firstRun;
-	bool _sceneCollectionChanging = false;
+	bool _sceneCollectionChanging = true;
 	bool _sourceCloneInstalled = false;
 	bool _dskInstalled = false;
+
+	obs_hotkey_id _quick_search_hotkey_id;
+
+	std::mutex _m;
 };
 
 class CreateDockDialog : public QDialog {
@@ -91,6 +132,24 @@ private:
 private slots:
 	void on_create_dock();
 	void on_cancel();
+};
+
+class QuickAccessSearchModal : public QDialog {
+	Q_OBJECT
+public:
+	QuickAccessSearchModal(QWidget *parent = nullptr);
+	~QuickAccessSearchModal();
+	static void OpenQuickSearch(void *data, obs_hotkey_id id,
+				    obs_hotkey_t *hotkey, bool pressed);
+	static QuickAccessSearchModal *dialog;
+	void SearchFocus();
+	void InitializeSearch();
+	void SourceCreated(QuickAccessSource *source);
+	void SourceDestroyed(QuickAccessSource *source);
+
+private:
+	QLayout *_layout = nullptr;
+	QuickAccessDock *_widget = nullptr;
 };
 
 class QuickAccessUtilityDialog : public QDialog {
