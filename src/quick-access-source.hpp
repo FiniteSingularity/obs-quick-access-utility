@@ -114,7 +114,7 @@ public:
 	inline void markForRemoval() { _removing = true; }
 	void removeParent(QuickAccessSource *parent);
 	void removeChild(QuickAccessSource *child);
-	signal_handler_t* getSignalHandler();
+	signal_handler_t *getSignalHandler();
 	inline std::vector<QuickAccessSource *> children() { return _children; }
 	inline std::vector<QuickAccessSource *> parents() { return _parents; }
 	inline SourceClass sourceType() { return _sourceClass; }

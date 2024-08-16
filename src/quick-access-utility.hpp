@@ -53,7 +53,10 @@ public:
 	inline bool SourceCloneInstalled() { return _sourceCloneInstalled; }
 	inline bool dskInstalled() { return _dskInstalled; }
 	inline QuickAccessSource *GetCurrentScene() { return _currentScene; }
-	inline std::vector<QuickAccessSource*> GetCurrentSceneSources() { return _currentSceneSources; }
+	inline std::vector<QuickAccessSource *> GetCurrentSceneSources()
+	{
+		return _currentSceneSources;
+	}
 
 	QuickAccessSource *GetSource(std::string);
 	std::vector<QuickAccessSource *> GetAllSources();
@@ -77,8 +80,8 @@ public:
 	static void SourceDestroyed(void *data, calldata_t *params);
 	static void SourceRename(void *data, calldata_t *params);
 	static void SourceUpdate(void *data, calldata_t *params);
-	static void SourceAddedToScene(void* data, calldata_t* params);
-	static void SourceRemovedFromScene(void* data, calldata_t* params);
+	static void SourceAddedToScene(void *data, calldata_t *params);
+	static void SourceRemovedFromScene(void *data, calldata_t *params);
 	static void CheckModule(void *data, obs_module_t *module);
 	static bool AddSource(void *data, obs_source_t *source);
 	static bool LinkScenes(void *data, obs_source_t *source);
@@ -89,13 +92,13 @@ private:
 	void _SetupSignals();
 	void _TearDownSignals();
 	void _SetCurrentSceneSources();
-	void _AddChildren(QuickAccessSource* scene);
+	void _AddChildren(QuickAccessSource *scene);
 
 	obs_module_t *_module = nullptr;
 	std::vector<QuickAccessDock *> _docks;
 	std::map<std::string, std::unique_ptr<QuickAccessSource>> _allSources;
 	QuickAccessSource *_currentScene = nullptr;
-	std::vector<QuickAccessSource*> _currentSceneSources;
+	std::vector<QuickAccessSource *> _currentSceneSources;
 	bool _firstRun;
 	bool _sceneCollectionChanging = true;
 	bool _sourceCloneInstalled = false;
@@ -141,8 +144,8 @@ public:
 	static QuickAccessSearchModal *dialog;
 	void SearchFocus();
 	void InitializeSearch();
-	void SourceCreated(QuickAccessSource* source);
-	void SourceDestroyed(QuickAccessSource* source);
+	void SourceCreated(QuickAccessSource *source);
+	void SourceDestroyed(QuickAccessSource *source);
 
 private:
 	QLayout *_layout = nullptr;

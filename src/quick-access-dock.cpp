@@ -34,9 +34,6 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
 	: QFrame(parent),
 	  _modal(modal)
 {
-	const auto mainWindow =
-		static_cast<QMainWindow *>(obs_frontend_get_main_window());
-
 	_dockName = obs_data_get_string(obsData, "dock_name");
 	_dockType = obs_data_get_string(obsData, "dock_type");
 	_dockId = obs_data_get_string(obsData, "dock_id");
@@ -217,18 +214,17 @@ void QuickAccessDock::Search(std::string searchTerm)
 	}
 }
 
-void QuickAccessDock::DrawDock(obs_data_t* obsData)
+void QuickAccessDock::DrawDock(obs_data_t *obsData)
 {
 	const auto mainWindow =
-		static_cast<QMainWindow*>(obs_frontend_get_main_window());
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 
 	obs_frontend_add_dock_by_id(
 		("quick-access-dock_" + this->_dockId).c_str(),
 		this->_dockName.c_str(), this);
 	_dockInjected = true;
 
-
-	const auto d = static_cast<QDockWidget*>(parentWidget());
+	const auto d = static_cast<QDockWidget *>(parentWidget());
 
 	const auto floating = obs_data_get_bool(obsData, "dock_floating");
 	if (d->isFloating() != floating) {
@@ -241,7 +237,7 @@ void QuickAccessDock::DrawDock(obs_data_t* obsData)
 		mainWindow->addDockWidget(area, d);
 	}
 
-	const char* geometry = obs_data_get_string(obsData, "dock_geometry");
+	const char *geometry = obs_data_get_string(obsData, "dock_geometry");
 	if (geometry && strlen(geometry)) {
 		d->restoreGeometry(
 			QByteArray::fromBase64(QByteArray(geometry)));
@@ -249,8 +245,7 @@ void QuickAccessDock::DrawDock(obs_data_t* obsData)
 
 	if (obs_data_get_bool(obsData, "dock_hidden")) {
 		d->hide();
-	}
-	else {
+	} else {
 		d->show();
 	}
 }
@@ -312,7 +307,8 @@ void QuickAccessDock::SourceCreated(QuickAccessSource *source)
 	}
 }
 
-void QuickAccessDock::SourceDestroyed(QuickAccessSource* source) {
+void QuickAccessDock::SourceDestroyed(QuickAccessSource *source)
+{
 	if (_dockType == "Search Source" || _dockType == "Manual") {
 		RemoveSource(source);
 	}
@@ -411,7 +407,7 @@ void QuickAccessDock::UpdateDynamicDock(bool updateWidget)
 			qau->GetSource(_currentScene->getUUID());*/
 		//_AddToDynDock(_currentScene);
 		_sources = qau->GetCurrentSceneSources();
-		for (auto& source : _sources) {
+		for (auto &source : _sources) {
 			source->addDock(this);
 		}
 	}

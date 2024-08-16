@@ -94,7 +94,6 @@ private slots:
 	void on_actionTransform_triggered();
 };
 
-
 class QuickAccess : public QWidget {
 	Q_OBJECT
 

@@ -156,7 +156,8 @@ bool QuickAccessSourceDelegate::editorEvent(QEvent *event,
 {
 	UNUSED_PARAMETER(model);
 	if (event->type() == QEvent::MouseButtonPress ||
-	    event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::MouseButtonDblClick) {
+	    event->type() == QEvent::MouseButtonRelease ||
+	    event->type() == QEvent::MouseButtonDblClick) {
 
 	} else {
 		//ignoring other mouse event and reseting button's state
@@ -229,10 +230,11 @@ bool QuickAccessSourceDelegate::editorEvent(QEvent *event,
 		}
 	}
 
-	if (_dock->ClickableScenes() && event->type() == QEvent::MouseButtonDblClick) {
+	if (_dock->ClickableScenes() &&
+	    event->type() == QEvent::MouseButtonDblClick) {
 		blog(LOG_INFO, "DBL CLICK!!!!!");
 	} else if (_dock->ClickableScenes() &&
-	    event->type() == QEvent::MouseButtonRelease) {
+		   event->type() == QEvent::MouseButtonRelease) {
 		blog(LOG_INFO, "SINGLE CLICK!!!!");
 		emit activateScene(index);
 	}
@@ -387,7 +389,7 @@ QuickAccessSource::~QuickAccessSource()
 	for (auto &child : _children) {
 		child->removeParent(this);
 	}
-	
+
 	obs_weak_source_release(_source);
 }
 
@@ -412,7 +414,7 @@ QIcon QuickAccessSource::icon() const
 	return qau->GetIconFromType(id);
 }
 
-signal_handler_t* QuickAccessSource::getSignalHandler()
+signal_handler_t *QuickAccessSource::getSignalHandler()
 {
 	auto source = obs_weak_source_get_source(_source);
 	auto signalHandler = obs_source_get_signal_handler(source);

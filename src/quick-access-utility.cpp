@@ -83,20 +83,20 @@ void QuickAccessUtility::SourceDestroyed(void *data, calldata_t *params)
 	std::unique_lock lock(qau->_m);
 	auto it = qau->_allSources.find(uuid);
 	if (it != qau->_allSources.end()) {
-		
+
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(), [it]() {
 				auto qaSource = it->second.get();
-				for (auto& dock : qau->_docks) {
+				for (auto &dock : qau->_docks) {
 					if (dock) {
 						dock->SourceDestroyed(qaSource);
 					}
 				}
-				QuickAccessSearchModal::dialog->SourceDestroyed(qaSource);
+				QuickAccessSearchModal::dialog->SourceDestroyed(
+					qaSource);
 				it->second->markForRemoval();
 				qau->_allSources.erase(it);
 			});
-
 	}
 	lock.unlock();
 	//});
@@ -223,7 +223,7 @@ void QuickAccessUtility::Load(obs_data_t *data)
 		searchDlg->move(hostRect.center() - searchDlg->rect().center());
 		searchDlg->adjustSize();
 	}
-	
+
 	loaded = true;
 }
 
@@ -289,10 +289,12 @@ void QuickAccessUtility::_SetCurrentSceneSources()
 	}
 }
 
-void QuickAccessUtility::_AddChildren(QuickAccessSource* scene)
+void QuickAccessUtility::_AddChildren(QuickAccessSource *scene)
 {
 	for (auto child : scene->children()) {
-		if (std::find(_currentSceneSources.begin(), _currentSceneSources.end(), child) == _currentSceneSources.end()) {
+		if (std::find(_currentSceneSources.begin(),
+			      _currentSceneSources.end(),
+			      child) == _currentSceneSources.end()) {
 			_currentSceneSources.push_back(child);
 			if (child->sourceType() != SourceClass::Source) {
 				_AddChildren(child);
@@ -334,10 +336,13 @@ void QuickAccessUtility::_TearDownSignals()
 	signal_handler_disconnect(signalHandler, "source_filter_remove",
 				  QuickAccessUtility::SourceUpdate, qau);
 	if (_currentScene) {
-		signal_handler_t* oldSignalHandler = _currentScene->getSignalHandler();
-		signal_handler_disconnect(oldSignalHandler, "item_add",
+		signal_handler_t *oldSignalHandler =
+			_currentScene->getSignalHandler();
+		signal_handler_disconnect(
+			oldSignalHandler, "item_add",
 			QuickAccessUtility::SourceAddedToScene, qau);
-		signal_handler_disconnect(oldSignalHandler, "item_remove",
+		signal_handler_disconnect(
+			oldSignalHandler, "item_remove",
 			QuickAccessUtility::SourceRemovedFromScene, qau);
 		//delete _currentScene;
 		//_currentScene = nullptr;
@@ -357,9 +362,7 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		blog(LOG_INFO, "============== QAU::Scene Collection Cleanup");
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(),
-			[]() {
-				qau->UnloadDocks();
-			});
+			[]() { qau->UnloadDocks(); });
 		qau->loaded = false;
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
 		blog(LOG_INFO, "============== QAU::Frontend Exit");
@@ -403,23 +406,30 @@ void QuickAccessUtility::SceneChanged()
 	obs_source_t *newScene = obs_frontend_get_current_scene();
 
 	std::string uuid = obs_source_get_uuid(newScene);
-	QuickAccessSource* qaNewScene = _allSources[uuid].get();
+	QuickAccessSource *qaNewScene = _allSources[uuid].get();
 	if (qaNewScene) {
 		if (_currentScene) {
-			signal_handler_t* oldSignalHandler = _currentScene->getSignalHandler();
-			signal_handler_disconnect(oldSignalHandler, "item_add",
+			signal_handler_t *oldSignalHandler =
+				_currentScene->getSignalHandler();
+			signal_handler_disconnect(
+				oldSignalHandler, "item_add",
 				QuickAccessUtility::SourceAddedToScene, qau);
-			signal_handler_disconnect(oldSignalHandler, "item_remove",
-				QuickAccessUtility::SourceRemovedFromScene, qau);
+			signal_handler_disconnect(
+				oldSignalHandler, "item_remove",
+				QuickAccessUtility::SourceRemovedFromScene,
+				qau);
 			//delete _currentScene;
 			_currentScene = nullptr;
 		}
-		signal_handler_t* signalHandler = obs_source_get_signal_handler(newScene);
+		signal_handler_t *signalHandler =
+			obs_source_get_signal_handler(newScene);
 		_currentScene = qaNewScene;
 
-		signal_handler_connect_ref(signalHandler, "item_add",
+		signal_handler_connect_ref(
+			signalHandler, "item_add",
 			QuickAccessUtility::SourceAddedToScene, qau);
-		signal_handler_connect_ref(signalHandler, "item_remove",
+		signal_handler_connect_ref(
+			signalHandler, "item_remove",
 			QuickAccessUtility::SourceRemovedFromScene, qau);
 		_SetCurrentSceneSources();
 		for (auto &dock : _docks) {
@@ -429,51 +439,52 @@ void QuickAccessUtility::SceneChanged()
 	obs_source_release(newScene);
 }
 
-void QuickAccessUtility::SourceAddedToScene(void* data, calldata_t* params)
+void QuickAccessUtility::SourceAddedToScene(void *data, calldata_t *params)
 {
 	blog(LOG_INFO, "SOURCE ADDED TO THE SCENE!");
 	UNUSED_PARAMETER(data);
-	obs_scene_t* parentScene =
-		static_cast<obs_scene_t*>(calldata_ptr(params, "scene"));
-	obs_source_t* parentSource = obs_scene_get_source(parentScene);
-	obs_sceneitem_t* sceneItem = static_cast<obs_sceneitem_t*>(calldata_ptr(params, "item"));
-	obs_source_t* source = obs_sceneitem_get_source(sceneItem);
+	obs_scene_t *parentScene =
+		static_cast<obs_scene_t *>(calldata_ptr(params, "scene"));
+	obs_source_t *parentSource = obs_scene_get_source(parentScene);
+	obs_sceneitem_t *sceneItem =
+		static_cast<obs_sceneitem_t *>(calldata_ptr(params, "item"));
+	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
 	std::string sourceId = obs_source_get_uuid(source);
 	std::string sceneId = obs_source_get_uuid(parentSource);
 
-	QuickAccessSource* parent = qau->_allSources[sceneId].get();
-	QuickAccessSource* child = qau->_allSources[sourceId].get();
+	QuickAccessSource *parent = qau->_allSources[sceneId].get();
+	QuickAccessSource *child = qau->_allSources[sourceId].get();
 
 	child->addParent(parent);
 	parent->addChild(child);
 
 	qau->_SetCurrentSceneSources();
-	for (auto& dock : qau->_docks) {
+	for (auto &dock : qau->_docks) {
 		dock->SetCurrentScene(qau->_currentScene);
 	}
-
 }
 
-void QuickAccessUtility::SourceRemovedFromScene(void* data, calldata_t* params)
+void QuickAccessUtility::SourceRemovedFromScene(void *data, calldata_t *params)
 {
 	blog(LOG_INFO, "SOURCE REMOVED FROM THE SCENE!");
 	UNUSED_PARAMETER(data);
-	obs_scene_t* parentScene =
-		static_cast<obs_scene_t*>(calldata_ptr(params, "scene"));
-	obs_source_t* parentSource = obs_scene_get_source(parentScene);
-	obs_sceneitem_t* sceneItem = static_cast<obs_sceneitem_t*>(calldata_ptr(params, "item"));
-	obs_source_t* source = obs_sceneitem_get_source(sceneItem);
+	obs_scene_t *parentScene =
+		static_cast<obs_scene_t *>(calldata_ptr(params, "scene"));
+	obs_source_t *parentSource = obs_scene_get_source(parentScene);
+	obs_sceneitem_t *sceneItem =
+		static_cast<obs_sceneitem_t *>(calldata_ptr(params, "item"));
+	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
 	std::string sourceId = obs_source_get_uuid(source);
 	std::string sceneId = obs_source_get_uuid(parentSource);
 
-	QuickAccessSource* parent = qau->_allSources[sceneId].get();
-	QuickAccessSource* child = qau->_allSources[sourceId].get();
+	QuickAccessSource *parent = qau->_allSources[sceneId].get();
+	QuickAccessSource *child = qau->_allSources[sourceId].get();
 
 	child->removeParent(parent);
 	parent->removeChild(child);
 
 	qau->_SetCurrentSceneSources();
-	for (auto& dock : qau->_docks) {
+	for (auto &dock : qau->_docks) {
 		dock->SetCurrentScene(qau->_currentScene);
 	}
 }
@@ -1078,14 +1089,14 @@ void QuickAccessSearchModal::SearchFocus()
 	}
 }
 
-void QuickAccessSearchModal::SourceCreated(QuickAccessSource* source)
+void QuickAccessSearchModal::SourceCreated(QuickAccessSource *source)
 {
 	if (_widget) {
 		_widget->SourceCreated(source);
 	}
 }
 
-void QuickAccessSearchModal::SourceDestroyed(QuickAccessSource* source)
+void QuickAccessSearchModal::SourceDestroyed(QuickAccessSource *source)
 {
 	if (_widget) {
 		_widget->SourceDestroyed(source);

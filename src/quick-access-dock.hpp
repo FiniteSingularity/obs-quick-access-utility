@@ -66,7 +66,7 @@ public:
 	void SetItemsButtonVisibility();
 
 	void SourceCreated(QuickAccessSource *source);
-	void SourceDestroyed(QuickAccessSource* source);
+	void SourceDestroyed(QuickAccessSource *source);
 	void SourceUpdate();
 	void SourceRename(QuickAccessSource *source);
 	void CleanupSourceHandlers();
@@ -76,7 +76,7 @@ public:
 	void Search(std::string searchTerm);
 	void SearchFocus();
 	void DismissModal();
-	void DrawDock(obs_data_t* obsData);
+	void DrawDock(obs_data_t *obsData);
 
 private:
 	void _ClearSources();
