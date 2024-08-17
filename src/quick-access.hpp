@@ -56,7 +56,7 @@ private:
 	QAction *_actionCtxtInteract;
 	QAction *_actionCtxtRefresh;
 	QAction *_actionCtxtToggleActivation;
-	QAction* _actionCtxtOpenWindowedProjector;
+	QAction *_actionCtxtOpenWindowedProjector;
 
 	QItemSelection _selected, _prior;
 
