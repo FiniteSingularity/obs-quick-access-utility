@@ -639,6 +639,17 @@ void QuickAccessSource::openInteract() const
 	obs_source_release(source);
 }
 
+void QuickAccessSource::openWindowedProjector() const
+{
+	obs_source_t *source = obs_weak_source_get_source(_source);
+	std::string projectorType =
+		_sourceClass == SourceClass::Source ? "Source" : "Scene";
+	std::string name = obs_source_get_name(source);
+	obs_frontend_open_projector(projectorType.c_str(), -1, "",
+				    name.c_str());
+	obs_source_release(source);
+}
+
 void QuickAccessSource::activateScene() const
 {
 	obs_source_t *source = obs_weak_source_get_source(_source);
