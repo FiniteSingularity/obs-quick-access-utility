@@ -124,6 +124,7 @@ public:
 	void openProperties() const;
 	void openFilters() const;
 	void openInteract() const;
+	void openWindowedProjector() const;
 	void refreshBrowser() const;
 	void toggleActivation() const;
 	void activateScene() const;

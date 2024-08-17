@@ -184,6 +184,15 @@ void QuickAccessSourceList::_setupContextMenu()
 			source->toggleActivation();
 		});
 	addAction(_actionCtxtToggleActivation);
+
+	_actionCtxtOpenWindowedProjector = new QAction(this);
+	_actionCtxtOpenWindowedProjector->setText("Open Windowed Projector");
+	connect(_actionCtxtOpenWindowedProjector, &QAction::triggered, this,
+		[this]() {
+			auto source = currentSource();
+			source->openWindowedProjector();
+		});
+	addAction(_actionCtxtOpenWindowedProjector);
 }
 
 QuickAccessSource *QuickAccessSourceList::currentSource()
