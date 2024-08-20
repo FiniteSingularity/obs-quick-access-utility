@@ -127,8 +127,7 @@ void QuickAccessSourceList::_displayContextMenu()
 	}
 
 	auto addCurrent = new QAction("Add to Current Scene", this);
-	connect(addCurrent, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
+	connect(addCurrent, &QAction::triggered, this, [this, source]() {
 		obs_source_t *src = source->get();
 
 		bool studio = obs_frontend_preview_program_mode_active();
@@ -147,8 +146,7 @@ void QuickAccessSourceList::_displayContextMenu()
 	if (qau->SourceCloneInstalled()) {
 		auto addCurrentClone =
 			new QAction("Add Clone to Current Scene", this);
-		connect(addCurrentClone, &QAction::triggered, this, [this]() {
-			auto source = currentSource();
+		connect(addCurrentClone, &QAction::triggered, this, [this, source]() {
 			bool studio =
 				obs_frontend_preview_program_mode_active();
 			obs_source_t *sceneSrc =
@@ -283,24 +281,6 @@ void QuickAccessSourceList::mousePressEvent(QMouseEvent *event)
 	if (idx.isValid()) {
 		setCurrentIndex(idx);
 		_qaParent->ClearSelections(this);
-		//// Check if source is interactive
-		//auto sourceModel =
-		//	dynamic_cast<QuickAccessSourceModel *>(model());
-		//if (sourceModel) {
-		//	auto source = sourceModel->item(idx.row());
-		//	_actionCtxtInteract->setVisible(source &&
-		//					source->hasInteract());
-		//	_actionCtxtProperties->setVisible(
-		//		source && source->hasProperties());
-		//	_actionCtxtRefresh->setVisible(source &&
-		//				       source->hasRefresh());
-		//	auto activate = source ? source->activeState() : "";
-		//	if (activate != "") {
-		//		_actionCtxtToggleActivation->setText(
-		//			activate.c_str());
-		//	}
-		//	_actionCtxtToggleActivation->setVisible(activate != "");
-		//}
 	}
 	QListView::mousePressEvent(event);
 }
