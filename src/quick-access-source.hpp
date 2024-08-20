@@ -125,6 +125,7 @@ public:
 	void openFilters() const;
 	void openInteract() const;
 	void openWindowedProjector() const;
+	void openFullScreenProjector(int id) const;
 	void refreshBrowser() const;
 	void toggleActivation() const;
 	void activateScene() const;

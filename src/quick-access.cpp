@@ -26,6 +26,9 @@
 #include <QString>
 #include <QtConcurrent>
 #include <QScrollArea>
+#include <QTextStream>
+#include <QMenu>
+#include <QCursor>
 
 #include <algorithm>
 #include "version.h"
@@ -47,7 +50,7 @@ QuickAccessSourceList::QuickAccessSourceList(QWidget *parent,
 	  _numActive(0)
 {
 	_qaParent = dynamic_cast<QuickAccess *>(parent);
-	setContextMenuPolicy(Qt::ActionsContextMenu);
+	setContextMenuPolicy(Qt::CustomContextMenu);
 	setMouseTracking(true);
 	setSelectionMode(QAbstractItemView::SingleSelection);
 	setSelectionBehavior(QAbstractItemView::SelectItems);
@@ -56,16 +59,75 @@ QuickAccessSourceList::QuickAccessSourceList(QWidget *parent,
 	setAcceptDrops(false);
 	setDragDropMode(QAbstractItemView::InternalMove);
 	setDefaultDropAction(Qt::TargetMoveAction);
-	_setupContextMenu();
+	connect(this, &QListView::customContextMenuRequested, this,
+		[this](const QPoint &pos) {
+			UNUSED_PARAMETER(pos);
+			_displayContextMenu();
+		});
 	//setAttribute(Qt::WA_TranslucentBackground);
 }
 
-void QuickAccessSourceList::_setupContextMenu()
+QList<QString> QuickAccessSourceList::_getProjectorMenuMonitorsFormatted()
 {
-	_actionCtxtAddCurrent = new QAction(this);
-	_actionCtxtAddCurrent->setText("Add to Current Scene");
-	connect(_actionCtxtAddCurrent, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
+	QList<QString> projectorsFormatted;
+	QList<QScreen *> screens = QGuiApplication::screens();
+	for (int i = 0; i < screens.size(); i++) {
+		QScreen *screen = screens[i];
+		QRect screenGeometry = screen->geometry();
+		qreal ratio = screen->devicePixelRatio();
+		QString name = "";
+#if defined(_WIN32) && QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
+		QTextStream fullname(&name);
+		fullname << GetMonitorName(screen->name());
+		fullname << " (";
+		fullname << (i + 1);
+		fullname << ")";
+#elif defined(__APPLE__) || defined(_WIN32)
+		name = screen->name();
+#else
+		name = screen->model().simplified();
+
+		if (name.length() > 1 && name.endsWith("-"))
+			name.chop(1);
+#endif
+		name = name.simplified();
+
+		if (name.length() == 0) {
+			name = QString("%1 %2").arg("Display").arg(
+				QString::number(i + 1));
+		}
+		QString str =
+			QString("%1: %2x%3 @ %4,%5")
+				.arg(name,
+				     QString::number(screenGeometry.width() *
+						     ratio),
+				     QString::number(screenGeometry.height() *
+						     ratio),
+				     QString::number(screenGeometry.x()),
+				     QString::number(screenGeometry.y()));
+		projectorsFormatted.push_back(str);
+	}
+	return projectorsFormatted;
+}
+
+void QuickAccessSourceList::_displayContextMenu()
+{
+	QMenu context(this);
+
+	auto idx = currentIndex();
+
+	auto sourceModel = dynamic_cast<QuickAccessSourceModel *>(model());
+	if (!sourceModel) {
+		return;
+	}
+
+	auto source = sourceModel->item(idx.row());
+	if (!source) {
+		return;
+	}
+
+	auto addCurrent = new QAction("Add to Current Scene", this);
+	connect(addCurrent, &QAction::triggered, this, [this, source]() {
 		obs_source_t *src = source->get();
 
 		bool studio = obs_frontend_preview_program_mode_active();
@@ -79,72 +141,72 @@ void QuickAccessSourceList::_setupContextMenu()
 		obs_source_release(currentScene);
 		_qaParent->DismissModal();
 	});
-	addAction(_actionCtxtAddCurrent);
+	context.addAction(addCurrent);
 
-	_actionCtxtAddCurrentClone = new QAction(this);
-	_actionCtxtAddCurrentClone->setText("Add Clone to Current Scene");
-	connect(_actionCtxtAddCurrentClone, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
-		bool studio = obs_frontend_preview_program_mode_active();
-		obs_source_t *sceneSrc =
-			studio ? obs_frontend_get_current_preview_scene()
-			       : obs_frontend_get_current_scene();
+	if (qau->SourceCloneInstalled()) {
+		auto addCurrentClone =
+			new QAction("Add Clone to Current Scene", this);
+		connect(addCurrentClone, &QAction::triggered, this, [this, source]() {
+			bool studio =
+				obs_frontend_preview_program_mode_active();
+			obs_source_t *sceneSrc =
+				studio ? obs_frontend_get_current_preview_scene()
+				       : obs_frontend_get_current_scene();
 
-		const char *sourceCloneId = "source-clone";
-		const char *vId = obs_get_latest_input_type_id(sourceCloneId);
+			const char *sourceCloneId = "source-clone";
+			const char *vId =
+				obs_get_latest_input_type_id(sourceCloneId);
 
-		std::string sourceName = source->getName();
-		std::string newSourceName = sourceName + " CLONE";
+			std::string sourceName = source->getName();
+			std::string newSourceName = sourceName + " CLONE";
 
-		// Pop open QDialog to ask for new cloned source name.
-		bool ok;
-		QString text =
-			QInputDialog::getText(this, "Name of new source",
-					      "Clone Name:", QLineEdit::Normal,
-					      newSourceName.c_str(), &ok);
-		if (ok && !text.isEmpty()) {
-			newSourceName = text.toStdString();
-		} else {
-			return;
-		}
+			// Pop open QDialog to ask for new cloned source name.
+			bool ok;
+			QString text = QInputDialog::getText(
+				this, "Name of new source",
+				"Clone Name:", QLineEdit::Normal,
+				newSourceName.c_str(), &ok);
+			if (ok && !text.isEmpty()) {
+				newSourceName = text.toStdString();
+			} else {
+				return;
+			}
 
-		obs_source_t *newSource = obs_source_create(
-			vId, newSourceName.c_str(), NULL, NULL);
-		obs_data_t *settings = obs_source_get_settings(newSource);
-		obs_data_set_string(settings, "clone", sourceName.c_str());
-		obs_source_update(newSource, settings);
-		obs_data_release(settings);
+			obs_source_t *newSource = obs_source_create(
+				vId, newSourceName.c_str(), NULL, NULL);
+			obs_data_t *settings =
+				obs_source_get_settings(newSource);
+			obs_data_set_string(settings, "clone",
+					    sourceName.c_str());
+			obs_source_update(newSource, settings);
+			obs_data_release(settings);
 
-		obs_scene_t *scene = obs_scene_from_source(sceneSrc);
-		obs_scene_add(scene, newSource);
+			obs_scene_t *scene = obs_scene_from_source(sceneSrc);
+			obs_scene_add(scene, newSource);
 
-		obs_source_release(sceneSrc);
-		obs_source_release(newSource);
-		_qaParent->DismissModal();
-	});
-	addAction(_actionCtxtAddCurrentClone);
+			obs_source_release(sceneSrc);
+			obs_source_release(newSource);
+			_qaParent->DismissModal();
+		});
+		context.addAction(addCurrentClone);
+	}
 
-	_actionCtxtProperties = new QAction(this);
-	_actionCtxtProperties->setText("Properties");
-	connect(_actionCtxtProperties, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
-		source->openProperties();
-	});
-	addAction(_actionCtxtProperties);
+	context.addSeparator();
 
-	_actionCtxtFilters = new QAction(this);
-	_actionCtxtFilters->setText("Filters");
-	connect(_actionCtxtFilters, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
-		source->openFilters();
-	});
-	addAction(_actionCtxtFilters);
+	if (source->hasProperties()) {
+		auto properties = new QAction("Properties", this);
+		connect(properties, &QAction::triggered, this,
+			[this, source]() { source->openProperties(); });
+		context.addAction(properties);
+	}
 
-	_actionCtxtRenameSource = new QAction(this);
-	_actionCtxtRenameSource->setText("Rename Source");
-	connect(_actionCtxtRenameSource, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
+	auto filters = new QAction("Filters", this);
+	connect(filters, &QAction::triggered, this,
+		[this, source]() { source->openFilters(); });
+	context.addAction(filters);
 
+	auto rename = new QAction("Rename", this);
+	connect(rename, &QAction::triggered, this, [this, source]() {
 		std::string currentName = source->getName();
 
 		bool ok;
@@ -158,41 +220,50 @@ void QuickAccessSourceList::_setupContextMenu()
 			return;
 		}
 	});
-	addAction(_actionCtxtRenameSource);
+	context.addAction(rename);
 
-	_actionCtxtInteract = new QAction(this);
-	_actionCtxtInteract->setText("Interact");
-	connect(_actionCtxtInteract, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
-		source->openInteract();
-	});
-	addAction(_actionCtxtInteract);
+	if (source->hasInteract()) {
+		auto interact = new QAction("Interact", this);
+		connect(interact, &QAction::triggered, this,
+			[this, source]() { source->openInteract(); });
+		context.addAction(interact);
+	}
 
-	_actionCtxtRefresh = new QAction(this);
-	_actionCtxtRefresh->setText("Refresh");
-	connect(_actionCtxtRefresh, &QAction::triggered, this, [this]() {
-		auto source = currentSource();
-		source->refreshBrowser();
-	});
-	addAction(_actionCtxtRefresh);
+	if (source->hasRefresh()) {
+		auto refresh = new QAction("Refresh", this);
+		connect(refresh, &QAction::triggered, this,
+			[this, source]() { source->refreshBrowser(); });
+		context.addAction(refresh);
+	}
 
-	_actionCtxtToggleActivation = new QAction(this);
-	_actionCtxtToggleActivation->setText("(De)Activate");
-	connect(_actionCtxtToggleActivation, &QAction::triggered, this,
-		[this]() {
-			auto source = currentSource();
-			source->toggleActivation();
-		});
-	addAction(_actionCtxtToggleActivation);
+	auto activateState = source ? source->activeState() : "";
+	if (activateState != "") {
+		auto activate = new QAction(activateState.c_str(), this);
+		connect(activate, &QAction::triggered, this,
+			[this, source]() { source->toggleActivation(); });
+		context.addAction(activate);
+	}
 
-	_actionCtxtOpenWindowedProjector = new QAction(this);
-	_actionCtxtOpenWindowedProjector->setText("Open Windowed Projector");
-	connect(_actionCtxtOpenWindowedProjector, &QAction::triggered, this,
-		[this]() {
-			auto source = currentSource();
-			source->openWindowedProjector();
-		});
-	addAction(_actionCtxtOpenWindowedProjector);
+	context.addSeparator();
+
+	auto windowedProjector = new QAction("Open Windowed Projector", this);
+	connect(windowedProjector, &QAction::triggered, this,
+		[this, source]() { source->openWindowedProjector(); });
+	context.addAction(windowedProjector);
+
+	auto monitors = _getProjectorMenuMonitorsFormatted();
+	auto fsProjector = new QMenu("Full Screen Projector", this);
+	for (int i = 0; i < monitors.size(); i++) {
+		auto monitor = new QAction(monitors[i], this);
+		fsProjector->addAction(monitor);
+		connect(monitor, &QAction::triggered, this,
+			[this, source, i]() {
+				source->openFullScreenProjector(i);
+			});
+	}
+	context.addMenu(fsProjector);
+
+	context.exec(QCursor::pos());
 }
 
 QuickAccessSource *QuickAccessSourceList::currentSource()
@@ -204,28 +275,12 @@ QuickAccessSource *QuickAccessSourceList::currentSource()
 
 void QuickAccessSourceList::mousePressEvent(QMouseEvent *event)
 {
+	blog(LOG_INFO, "Mouse Press");
+
 	auto idx = indexAt(event->pos());
 	if (idx.isValid()) {
 		setCurrentIndex(idx);
 		_qaParent->ClearSelections(this);
-		// Check if source is interactive
-		auto sourceModel =
-			dynamic_cast<QuickAccessSourceModel *>(model());
-		if (sourceModel) {
-			auto source = sourceModel->item(idx.row());
-			_actionCtxtInteract->setVisible(source &&
-							source->hasInteract());
-			_actionCtxtProperties->setVisible(
-				source && source->hasProperties());
-			_actionCtxtRefresh->setVisible(source &&
-						       source->hasRefresh());
-			auto activate = source->activeState();
-			if (activate != "") {
-				_actionCtxtToggleActivation->setText(
-					activate.c_str());
-			}
-			_actionCtxtToggleActivation->setVisible(activate != "");
-		}
 	}
 	QListView::mousePressEvent(event);
 }
@@ -498,11 +553,11 @@ void QuickAccess::_createListContainer()
 	_listsContainer->setStyleSheet("background: transparent");
 	_listsContainer->setWidgetResizable(true);
 	_listsContainer->setAttribute(Qt::WA_TranslucentBackground);
-	auto listsWidget = new QWidget();
+	auto listsWidget = new QWidget(this);
 	auto lcLayout = new QVBoxLayout();
 	int i = 0;
 	for (auto &qa : _qaLists) {
-		auto header = new QLabel();
+		auto header = new QLabel(this);
 		header->setText(qa.header.c_str());
 		header->setStyleSheet("QLabel { font-size: 18px }");
 		header->setSizePolicy(QSizePolicy::Preferred,
