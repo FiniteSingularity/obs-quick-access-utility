@@ -8,6 +8,7 @@
 #include <obs-frontend-api.h>
 
 #include <QString>
+#include <QList>
 #include <QWidget>
 #include <QLabel>
 #include <QCheckBox>
@@ -44,7 +45,8 @@ public:
 
 private:
 	QuickAccess *_qaParent;
-	void _setupContextMenu();
+	void _displayContextMenu(const QPoint &pos);
+	QList<QString> _getProjectorMenuMonitorsFormatted();
 	SearchType _searchType;
 	bool _activeSearch;
 	int _numActive;
@@ -57,6 +59,7 @@ private:
 	QAction *_actionCtxtRefresh;
 	QAction *_actionCtxtToggleActivation;
 	QAction *_actionCtxtOpenWindowedProjector;
+	QMenu *_actionCtxtOpenFSProjector;
 
 	QItemSelection _selected, _prior;
 
