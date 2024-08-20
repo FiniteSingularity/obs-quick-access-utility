@@ -45,7 +45,7 @@ public:
 
 private:
 	QuickAccess *_qaParent;
-	void _displayContextMenu(const QPoint &pos);
+	void _displayContextMenu();
 	QList<QString> _getProjectorMenuMonitorsFormatted();
 	SearchType _searchType;
 	bool _activeSearch;

@@ -60,7 +60,10 @@ QuickAccessSourceList::QuickAccessSourceList(QWidget *parent,
 	setDragDropMode(QAbstractItemView::InternalMove);
 	setDefaultDropAction(Qt::TargetMoveAction);
 	connect(this, &QListView::customContextMenuRequested, this,
-		[this](const QPoint &pos) { _displayContextMenu(pos); });
+		[this](const QPoint &pos) {
+			UNUSED_PARAMETER(pos);
+			_displayContextMenu();
+		});
 	//setAttribute(Qt::WA_TranslucentBackground);
 }
 
@@ -107,7 +110,7 @@ QList<QString> QuickAccessSourceList::_getProjectorMenuMonitorsFormatted()
 	return projectorsFormatted;
 }
 
-void QuickAccessSourceList::_displayContextMenu(const QPoint &pos)
+void QuickAccessSourceList::_displayContextMenu()
 {
 	QMenu context(this);
 
