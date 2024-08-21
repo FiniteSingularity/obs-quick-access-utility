@@ -972,22 +972,22 @@ CreateDockDialog::CreateDockDialog(QWidget *parent) : QDialog(parent)
 	_layout2->addWidget(optionsLabel);
 
 	_showProperties = new QCheckBox(this);
-	_showProperties->setText("Show Properties?");
+	_showProperties->setText("Show Properties");
 	_showProperties->setChecked(true);
 	_layout2->addWidget(_showProperties);
 
 	_showFilters = new QCheckBox(this);
-	_showFilters->setText("Show Filters?");
+	_showFilters->setText("Show Filters");
 	_showFilters->setChecked(true);
 	_layout2->addWidget(_showFilters);
 
 	_showScenes = new QCheckBox(this);
-	_showScenes->setText("Show Parent Scenes?");
+	_showScenes->setText("Show Parent Scenes");
 	_showScenes->setChecked(true);
 	_layout2->addWidget(_showScenes);
 
 	_clickThroughScenes = new QCheckBox(this);
-	_clickThroughScenes->setText("Clickable Scenes?");
+	_clickThroughScenes->setText("Clickable Scenes");
 	_clickThroughScenes->setChecked(false);
 	_layout2->addWidget(_clickThroughScenes);
 

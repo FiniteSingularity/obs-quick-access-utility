@@ -1377,22 +1377,22 @@ UpdateDockDialog::UpdateDockDialog(QuickAccessDock *dock, QWidget *parent)
 	_layout2->addWidget(optionsLabel);
 
 	_showProperties = new QCheckBox(this);
-	_showProperties->setText("Show Properties?");
+	_showProperties->setText("Show Properties");
 	_showProperties->setChecked(_dock->ShowProperties());
 	_layout2->addWidget(_showProperties);
 
 	_showFilters = new QCheckBox(this);
-	_showFilters->setText("Show Filters?");
+	_showFilters->setText("Show Filters");
 	_showFilters->setChecked(_dock->ShowFilters());
 	_layout2->addWidget(_showFilters);
 
 	_showScenes = new QCheckBox(this);
-	_showScenes->setText("Show Parent Scenes?");
+	_showScenes->setText("Show Parent Scenes");
 	_showScenes->setChecked(_dock->ShowScenes());
 	_layout2->addWidget(_showScenes);
 
 	_clickThroughScenes = new QCheckBox(this);
-	_clickThroughScenes->setText("Clickable Scenes?");
+	_clickThroughScenes->setText("Clickable Scenes");
 	_clickThroughScenes->setChecked(_dock->ClickableScenes());
 	_layout2->addWidget(_clickThroughScenes);
 
