@@ -27,6 +27,8 @@
 #include <QtConcurrent>
 #include <QScrollArea>
 #include <QTextStream>
+#include <QStyleOption>
+#include <QPainter>
 #include <QMenu>
 #include <QCursor>
 
@@ -327,6 +329,36 @@ void QuickAccessSourceList::search(std::string searchTerm)
 	updateGeometry();
 }
 
+DockMessage::DockMessage(QWidget *parent, std::string messageText,
+			 std::string iconPath)
+	: QWidget(parent)
+{
+	QLabel *message = new QLabel(this);
+	message->setText(messageText.c_str());
+	message->setWordWrap(true);
+	message->setAlignment(Qt::AlignCenter);
+
+	QVBoxLayout *messageLayout = new QVBoxLayout(this);
+	QWidget *spacerTop = new QWidget(this);
+	QWidget *spacerBot = new QWidget(this);
+	spacerTop->setSizePolicy(QSizePolicy::Preferred,
+				 QSizePolicy::Expanding);
+	spacerBot->setSizePolicy(QSizePolicy::Preferred,
+				 QSizePolicy::Expanding);
+	messageLayout->addWidget(spacerTop);
+	if (iconPath != "") {
+		QPixmap magImgPixmap =
+			QIcon(iconPath.c_str()).pixmap(QSize(48, 48));
+		QLabel *messageIcon = new QLabel(this);
+		messageIcon->setPixmap(magImgPixmap);
+		messageIcon->setAlignment(Qt::AlignCenter);
+		messageLayout->addWidget(messageIcon);
+	}
+
+	messageLayout->addWidget(message);
+	messageLayout->addWidget(spacerBot);
+}
+
 QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	: QWidget(parent),
 	  _dock(dock)
@@ -338,55 +370,31 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	auto layout = new QVBoxLayout(this);
 	setAttribute(Qt::WA_TranslucentBackground);
 	layout->setSpacing(0);
-	layout->setContentsMargins(2, 2, 2, 2);
-
+	layout->setContentsMargins(0, 0, 0, 0);
+	_contents = nullptr;
 	_listsContainer = new QScrollArea(this);
 	_createListContainer();
 
-	_emptySearch = new QWidget(this);
-	QLabel *emptySearchLabel = new QLabel(this);
-	QLabel *searchImage = new QLabel(this);
-	std::string imgPath = imageBaseDir + "magnifying-glass-solid-white.svg";
-	QPixmap magImgPixmap = QIcon(imgPath.c_str()).pixmap(QSize(48, 48));
-	searchImage->setPixmap(magImgPixmap);
-	searchImage->setAlignment(Qt::AlignCenter);
+	std::string emptySearchText =
+		"Type in the search bar above to search for either a source name, source type, filter name, filter type, file path, or URL.";
+	std::string searchImgPath =
+		imageBaseDir + "magnifying-glass-solid-white.svg";
+	_emptySearch = new DockMessage(this, emptySearchText, searchImgPath);
 
-	emptySearchLabel->setText(
-		"Type in the search bar above to search for either a source name, source type, filter name, filter type, file path, or URL.");
-	emptySearchLabel->setWordWrap(true);
-	emptySearchLabel->setAlignment(Qt::AlignCenter);
-	//emptySearchLabel->setStyleSheet("QLabel {font-size: 18pt;}");
-	QVBoxLayout *emptySearchLayout = new QVBoxLayout();
-	QWidget *spacer1 = new QWidget(this);
-	QWidget *spacer2 = new QWidget(this);
-	spacer1->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-	spacer2->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-	emptySearchLayout->addWidget(spacer1);
-	emptySearchLayout->addWidget(searchImage);
-	emptySearchLayout->addWidget(emptySearchLabel);
-	emptySearchLayout->addWidget(spacer2);
-	_emptySearch->setLayout(emptySearchLayout);
+	std::string emptyManualText =
+		"You don't have any sources in your dock. Click the + below to add one.";
+	_emptyManual = new DockMessage(this, emptyManualText);
 
-	_emptyManual = new QWidget(this);
-	QLabel *emptyManualLabel = new QLabel(this);
-	emptyManualLabel->setText("Add a source...");
-	QVBoxLayout *emptyManualLayout = new QVBoxLayout();
-	emptyManualLayout->addWidget(emptyManualLabel);
-	_emptyManual->setLayout(emptyManualLayout);
+	std::string emptyDynamicText =
+		"There are no sources in the current scene. Add one to the scene and it will appear here.";
+	_emptyDynamic = new DockMessage(this, emptyDynamicText);
 
-	_emptyDynamic = new QWidget(this);
-	QLabel *emptyDynamicLabel = new QLabel(this);
-	emptyDynamicLabel->setText("No sources in the current scene...");
-	QVBoxLayout *emptyDynamicLayout = new QVBoxLayout();
-	emptyDynamicLayout->addWidget(emptyDynamicLabel);
-	_emptyDynamic->setLayout(emptyDynamicLayout);
+	std::string noSearchResultsText =
+		"No sources found matching your search terms.";
+	_noSearchResults =
+		new DockMessage(this, noSearchResultsText, searchImgPath);
 
-	_noSearchResults = new QWidget(this);
-	QLabel *noSearchResultsLabel = new QLabel(this);
-	noSearchResultsLabel->setText("No sources found matching search...");
-	QVBoxLayout *noSearchResultsLayout = new QVBoxLayout();
-	noSearchResultsLayout->addWidget(noSearchResultsLabel);
-	_noSearchResults->setLayout(noSearchResultsLayout);
+	auto sourceCount = _dock->SourceCount();
 
 	_contents = new QStackedWidget(this);
 	_contents->addWidget(_listsContainer);  //0
@@ -394,9 +402,15 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	_contents->addWidget(_emptyManual);     //2
 	_contents->addWidget(_emptyDynamic);    //3
 	_contents->addWidget(_noSearchResults); //4
+	int index = 1;
 	if (_dock->GetType() == "Source Search") {
-		_contents->setCurrentIndex(1);
+		index = 1;
+	} else if (_dock->GetType() == "Manual") {
+		index = sourceCount > 0 ? 0 : 2;
+	} else if (_dock->GetType() == "Dynamic") {
+		index = sourceCount > 0 ? 0 : 3;
 	}
+	_contents->setCurrentIndex(index);
 
 	std::string dockType = _dock->GetType();
 
@@ -442,7 +456,6 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	_actionsToolbar->setFloatable(false);
 
 	if (_dock->GetType() == "Manual") {
-
 		_actionAddSource = new QAction(this);
 		_actionAddSource->setObjectName(
 			QStringLiteral("actionAddSource"));
@@ -532,10 +545,6 @@ void QuickAccess::_createListContainer()
 	_qaLists.clear();
 	_sourceModels.clear();
 	for (auto &dg : _dock->DisplayGroups()) {
-		// Shouldn't this be, no auto model line, then
-		// std::make_unique<...>() ?
-		// Why are we making a pointer to then copy it?
-		//auto model = new QuickAccessSourceModel();
 		_sourceModels.emplace_back(
 			std::make_unique<QuickAccessSourceModel>());
 		auto model = _sourceModels[_sourceModels.size() - 1].get();
@@ -550,14 +559,20 @@ void QuickAccess::_createListContainer()
 	if (widget) {
 		delete widget;
 	}
-	_listsContainer->setStyleSheet("background: transparent");
+	_listsContainer->setStyleSheet("QWidget {background: transparent;}");
+	_listsContainer->setContentsMargins(0, 0, 0, 0);
 	_listsContainer->setWidgetResizable(true);
 	_listsContainer->setAttribute(Qt::WA_TranslucentBackground);
 	auto listsWidget = new QWidget(this);
+	listsWidget->setContentsMargins(0, 0, 0, 0);
 	auto lcLayout = new QVBoxLayout();
+	lcLayout->setContentsMargins(2, 2, 2, 2);
+	lcLayout->setSpacing(0);
 	int i = 0;
 	for (auto &qa : _qaLists) {
 		auto header = new QLabel(this);
+		header->setContentsMargins(0, 10, 0, 4);
+		header->setAlignment(Qt::AlignHCenter);
 		header->setText(qa.header.c_str());
 		header->setStyleSheet("QLabel { font-size: 18px }");
 		header->setSizePolicy(QSizePolicy::Preferred,
@@ -568,6 +583,8 @@ void QuickAccess::_createListContainer()
 		qa.listView->setModel(qa.model);
 		qa.listView->setSizePolicy(QSizePolicy::Preferred,
 					   QSizePolicy::Fixed);
+		qa.listView->setStyleSheet("border: none");
+		qa.listView->setContentsMargins(0, 0, 0, 10);
 		qa.listView->setMinimumHeight(0);
 		QuickAccessSourceDelegate *itemDelegate =
 			new QuickAccessSourceDelegate(qa.listView, _dock);
@@ -637,7 +654,6 @@ void QuickAccess::_createListContainer()
 					wdgt->style()->polish(wdgt);
 				}
 			});
-		//if (_dock->ClickableScenes()) {
 		connect(itemDelegate, &QuickAccessSourceDelegate::activateScene,
 			this, [this](const QModelIndex &index) {
 				const QuickAccessSourceModel *model =
@@ -648,7 +664,6 @@ void QuickAccess::_createListContainer()
 					model->item(index.row());
 				source->activateScene();
 			});
-		//}
 		lcLayout->addWidget(qa.listView);
 		++i;
 	}
@@ -727,16 +742,39 @@ bool QuickAccess::AddSceneItems(obs_scene_t *scene, obs_sceneitem_t *sceneItem,
 QMenu *QuickAccess::_CreateParentSceneMenu()
 {
 	QMenu *popup = new QMenu("SceneMenu", this);
-
-	auto wa = new QWidgetAction(popup);
-	auto t = new QLineEdit;
-	t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
-		foreach(auto action, popup->actions()) action->setVisible(
-			action->text().isEmpty() ||
-			action->text().contains(text, Qt::CaseInsensitive));
-	});
-	wa->setDefaultWidget(t);
-	popup->addAction(wa);
+	bool dark = obs_frontend_is_theme_dark();
+	auto title = new QWidgetAction(popup);
+	auto titleText = new QLabel("Parent Scenes", this);
+	titleText->setStyleSheet("QLabel { font-size: 12pt; margin: 10px; }");
+	titleText->setAlignment(Qt::AlignCenter);
+	title->setDefaultWidget(titleText);
+	popup->addAction(title);
+	popup->addSeparator();
+	if (_sceneItems.size() == 0) {
+		auto noItems = new QWidgetAction(popup);
+		auto noItemsText = new QLabel("No Parent Scenes", this);
+		noItemsText->setStyleSheet("QLabel {margin: 30px;}");
+		noItemsText->setAlignment(Qt::AlignCenter);
+		noItems->setDefaultWidget(noItemsText);
+		popup->addAction(noItems);
+	}
+	if (_sceneItems.size() > 1) {
+		auto wa = new QWidgetAction(popup);
+		auto t = new QLineEdit;
+		t->setPlaceholderText("Search...");
+		t->connect(
+			t, &QLineEdit::textChanged,
+			[popup](const QString text) {
+				foreach(auto action, popup->actions())
+					action->setVisible(
+						action->text().isEmpty() ||
+						action->text().contains(
+							text,
+							Qt::CaseInsensitive));
+			});
+		wa->setDefaultWidget(t);
+		popup->addAction(wa);
+	}
 	popup->setStyleSheet("QMenu { menu-scrollable: 1; }");
 	auto getActionAfter = [](QMenu *menu, const QString &name) {
 		QList<QAction *> actions = menu->actions();
@@ -750,8 +788,8 @@ QMenu *QuickAccess::_CreateParentSceneMenu()
 		return (QAction *)nullptr;
 	};
 
-	auto addSource = [this, getActionAfter](QMenu *pop,
-						obs_sceneitem_t *sceneItem) {
+	auto addSource = [this, getActionAfter,
+			  dark](QMenu *pop, obs_sceneitem_t *sceneItem) {
 		auto scene = obs_sceneitem_get_scene(sceneItem);
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		const char *name = obs_source_get_name(sceneSource);
@@ -759,6 +797,14 @@ QMenu *QuickAccess::_CreateParentSceneMenu()
 
 		QWidgetAction *popupItem = new QWidgetAction(this);
 		QWidget *itemWidget = new QuickAccessSceneItem(this, sceneItem);
+		if (dark) {
+			itemWidget->setStyleSheet(
+				"QuickAccessSceneItem:hover {background: #333333;}");
+		} else {
+			itemWidget->setStyleSheet(
+				"QuickAccessSceneItem:hover {background: #aaaaaa;}");
+		}
+
 		popupItem->setDefaultWidget(itemWidget);
 		popupItem->setParent(pop);
 
@@ -831,6 +877,9 @@ void QuickAccess::Load()
 {
 	if (_dock->GetType() == "Dynamic") {
 		_createListContainer();
+		auto sourceCount = _dock->SourceCount();
+		int index = sourceCount > 0 ? 0 : 3;
+		_contents->setCurrentIndex(index);
 	}
 }
 
@@ -863,6 +912,7 @@ bool QuickAccess::AddSourceName(void *data, obs_source_t *source)
 
 void QuickAccess::AddSource(QuickAccessSource *source, std::string groupName)
 {
+	bool update = false;
 	auto it = std::find_if(
 		_qaLists.begin(), _qaLists.end(),
 		[groupName](QuickAccessSourceListView const &list) {
@@ -873,6 +923,10 @@ void QuickAccess::AddSource(QuickAccessSource *source, std::string groupName)
 		it->model->addSource(source);
 		it->listView->setVisible(true);
 		it->listView->updateGeometry();
+		update = true;
+	}
+	if (_dock->GetType() == "Manual" && update) {
+		_contents->setCurrentIndex(0);
 	}
 }
 
@@ -886,6 +940,10 @@ void QuickAccess::RemoveSource(QuickAccessSource *source, std::string groupName)
 	if (it != _qaLists.end()) {
 		it->model->removeSource(source);
 		it->listView->updateGeometry();
+	}
+	auto sourceCount = _dock->SourceCount();
+	if (_dock->GetType() == "Manual" && sourceCount == 0) {
+		_contents->setCurrentIndex(2);
 	}
 }
 
@@ -1276,12 +1334,11 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 	_actionsToolbar->setObjectName(QStringLiteral("actionsToolbar"));
 	_actionsToolbar->setIconSize(QSize(16, 16));
 	_actionsToolbar->setFixedHeight(22);
-	_actionsToolbar->setStyleSheet("QToolBar{spacing: 0px;}");
 	_actionsToolbar->setFloatable(false);
 	_actionsToolbar->setSizePolicy(QSizePolicy::Maximum,
 				       QSizePolicy::Maximum);
 	_actionsToolbar->setStyleSheet(
-		"QToolButton {padding: 0px; margin-left: 2px; margin-right: 2px;}");
+		"QToolBar{spacing: 0px;} QToolButton {margin-left: 0px; margin-right: 0px; background: none; border: none;}");
 
 	_vis = new QCheckBox();
 	_vis->setProperty("visibilityCheckBox", true);
@@ -1290,6 +1347,7 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 	_vis->setStyleSheet("background: none");
 	_vis->setAccessibleName("Source Visibility");
 	_vis->setAccessibleDescription("Source Visibility");
+	_vis->setToolTip("Source Visibility");
 
 	auto actionTransform = new QAction(this);
 	actionTransform->setObjectName(QStringLiteral("actionTransform"));
@@ -1299,9 +1357,10 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 	connect(actionTransform, SIGNAL(triggered()), this,
 		SLOT(on_actionTransform_triggered()));
 	_actionsToolbar->addAction(actionTransform);
+	//_actionsToolbar->setStyleSheet("QToolButton {background: none; border: none;} ");
 
 	_layout->addWidget(_iconLabel);
-	_layout->setSpacing(10);
+	_layout->setSpacing(4);
 	_layout->addWidget(_label);
 	_layout->addWidget(_vis);
 	_layout->addWidget(_actionsToolbar);
@@ -1335,6 +1394,14 @@ void QuickAccessSceneItem::setHighlight(bool h)
 {
 	setBackgroundRole(h ? QPalette::Highlight : QPalette::Window);
 	setAutoFillBackground(h);
+}
+
+void QuickAccessSceneItem::paintEvent(QPaintEvent *)
+{
+	QStyleOption opt;
+	opt.initFrom(this);
+	QPainter p(this);
+	style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
 
 UpdateDockDialog::UpdateDockDialog(QuickAccessDock *dock, QWidget *parent)
@@ -1377,22 +1444,22 @@ UpdateDockDialog::UpdateDockDialog(QuickAccessDock *dock, QWidget *parent)
 	_layout2->addWidget(optionsLabel);
 
 	_showProperties = new QCheckBox(this);
-	_showProperties->setText("Show Properties?");
+	_showProperties->setText("Show Properties");
 	_showProperties->setChecked(_dock->ShowProperties());
 	_layout2->addWidget(_showProperties);
 
 	_showFilters = new QCheckBox(this);
-	_showFilters->setText("Show Filters?");
+	_showFilters->setText("Show Filters");
 	_showFilters->setChecked(_dock->ShowFilters());
 	_layout2->addWidget(_showFilters);
 
 	_showScenes = new QCheckBox(this);
-	_showScenes->setText("Show Parent Scenes?");
+	_showScenes->setText("Show Parent Scenes");
 	_showScenes->setChecked(_dock->ShowScenes());
 	_layout2->addWidget(_showScenes);
 
 	_clickThroughScenes = new QCheckBox(this);
-	_clickThroughScenes->setText("Clickable Scenes?");
+	_clickThroughScenes->setText("Clickable Scenes");
 	_clickThroughScenes->setChecked(_dock->ClickableScenes());
 	_layout2->addWidget(_clickThroughScenes);
 

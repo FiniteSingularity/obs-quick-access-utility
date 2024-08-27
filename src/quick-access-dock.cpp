@@ -82,7 +82,7 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
 	}
 
 	_widget = new QuickAccess(this, this, "quick_access_widget");
-
+	//_widget->setStyleSheet("border: 1px solid #FFFFFF;");
 	setMinimumWidth(200);
 	auto l = new QVBoxLayout;
 	l->setContentsMargins(0, 0, 0, 0);
@@ -99,6 +99,15 @@ QuickAccessDock::~QuickAccessDock()
 	if (_dockWidget) {
 		delete _dockWidget;
 	}
+}
+
+size_t QuickAccessDock::SourceCount()
+{
+	size_t sourceCount = 0;
+	for (auto &dg : _displayGroups) {
+		sourceCount += dg.sources2.size();
+	}
+	return sourceCount;
 }
 
 void QuickAccessDock::InitializeSearch()

@@ -76,6 +76,7 @@ public:
 	void Search(std::string searchTerm);
 	void SearchFocus();
 	void DismissModal();
+	size_t SourceCount();
 	void DrawDock(obs_data_t *obsData);
 
 private:
