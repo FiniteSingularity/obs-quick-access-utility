@@ -36,7 +36,7 @@ endfunction()
 
 #
 
-project(obs-quick-access-utility VERSION 0.0.2)
+project(obs-quick-access-utility VERSION 1.0.0)
 
 message(STATUS "CMAKE_PROJECT_NAME is ${CMAKE_PROJECT_NAME}")
 if(${CMAKE_PROJECT_NAME} STREQUAL "obs-studio")
