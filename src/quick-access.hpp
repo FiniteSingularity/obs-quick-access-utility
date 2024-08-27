@@ -37,7 +37,8 @@ class QuickAccessSourceModel;
 class DockMessage : public QWidget {
 	Q_OBJECT
 public:
-	DockMessage(QWidget* parent, std::string messageText, std::string iconPath = "");
+	DockMessage(QWidget *parent, std::string messageText,
+		    std::string iconPath = "");
 };
 
 class QuickAccessSourceList : public QListView {
@@ -91,7 +92,8 @@ public:
 	~QuickAccessSceneItem();
 	void setHighlight(bool h);
 	//void mouseReleaseEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent*) override;
+	void paintEvent(QPaintEvent *) override;
+
 private:
 	obs_sceneitem_t *_sceneItem = nullptr;
 	QLabel *_iconLabel = nullptr;

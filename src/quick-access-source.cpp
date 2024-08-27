@@ -87,7 +87,7 @@ void QuickAccessSourceDelegate::paint(QPainter *painter,
 		std::string scenesIconPath = mode + "sources/scene.svg";
 		scenesIcon.addFile(scenesIconPath.c_str(), QSize(),
 				   QIcon::Normal, QIcon::Off);
-		
+
 		parentScenesButton.icon = scenesIcon;
 		parentScenesButton.iconSize = QSize(16, 16);
 		parentScenesButton.state = _filtersState |

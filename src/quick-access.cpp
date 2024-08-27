@@ -329,28 +329,32 @@ void QuickAccessSourceList::search(std::string searchTerm)
 	updateGeometry();
 }
 
-DockMessage::DockMessage(QWidget* parent, std::string messageText, std::string iconPath)
+DockMessage::DockMessage(QWidget *parent, std::string messageText,
+			 std::string iconPath)
 	: QWidget(parent)
 {
-	QLabel* message = new QLabel(this);
+	QLabel *message = new QLabel(this);
 	message->setText(messageText.c_str());
 	message->setWordWrap(true);
 	message->setAlignment(Qt::AlignCenter);
 
-	QVBoxLayout* messageLayout = new QVBoxLayout(this);
-	QWidget* spacerTop = new QWidget(this);
-	QWidget* spacerBot = new QWidget(this);
-	spacerTop->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-	spacerBot->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	QVBoxLayout *messageLayout = new QVBoxLayout(this);
+	QWidget *spacerTop = new QWidget(this);
+	QWidget *spacerBot = new QWidget(this);
+	spacerTop->setSizePolicy(QSizePolicy::Preferred,
+				 QSizePolicy::Expanding);
+	spacerBot->setSizePolicy(QSizePolicy::Preferred,
+				 QSizePolicy::Expanding);
 	messageLayout->addWidget(spacerTop);
 	if (iconPath != "") {
-		QPixmap magImgPixmap = QIcon(iconPath.c_str()).pixmap(QSize(48, 48));
-		QLabel* messageIcon = new QLabel(this);
+		QPixmap magImgPixmap =
+			QIcon(iconPath.c_str()).pixmap(QSize(48, 48));
+		QLabel *messageIcon = new QLabel(this);
 		messageIcon->setPixmap(magImgPixmap);
 		messageIcon->setAlignment(Qt::AlignCenter);
 		messageLayout->addWidget(messageIcon);
 	}
-	
+
 	messageLayout->addWidget(message);
 	messageLayout->addWidget(spacerBot);
 }
@@ -371,18 +375,24 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	_listsContainer = new QScrollArea(this);
 	_createListContainer();
 
-	std::string emptySearchText = "Type in the search bar above to search for either a source name, source type, filter name, filter type, file path, or URL.";
-	std::string searchImgPath = imageBaseDir + "magnifying-glass-solid-white.svg";
+	std::string emptySearchText =
+		"Type in the search bar above to search for either a source name, source type, filter name, filter type, file path, or URL.";
+	std::string searchImgPath =
+		imageBaseDir + "magnifying-glass-solid-white.svg";
 	_emptySearch = new DockMessage(this, emptySearchText, searchImgPath);
 
-	std::string emptyManualText = "You don't have any sources in your dock. Click the + below to add one.";
+	std::string emptyManualText =
+		"You don't have any sources in your dock. Click the + below to add one.";
 	_emptyManual = new DockMessage(this, emptyManualText);
 
-	std::string emptyDynamicText = "There are no sources in the current scene. Add one to the scene and it will appear here.";
+	std::string emptyDynamicText =
+		"There are no sources in the current scene. Add one to the scene and it will appear here.";
 	_emptyDynamic = new DockMessage(this, emptyDynamicText);
 
-	std::string noSearchResultsText = "No sources found matching your search terms.";
-	_noSearchResults = new DockMessage(this, noSearchResultsText, searchImgPath);
+	std::string noSearchResultsText =
+		"No sources found matching your search terms.";
+	_noSearchResults =
+		new DockMessage(this, noSearchResultsText, searchImgPath);
 
 	auto sourceCount = _dock->SourceCount();
 
@@ -752,10 +762,15 @@ QMenu *QuickAccess::_CreateParentSceneMenu()
 		auto wa = new QWidgetAction(popup);
 		auto t = new QLineEdit;
 		t->setPlaceholderText("Search...");
-		t->connect(t, &QLineEdit::textChanged, [popup](const QString text) {
-			foreach(auto action, popup->actions()) action->setVisible(
-				action->text().isEmpty() ||
-				action->text().contains(text, Qt::CaseInsensitive));
+		t->connect(
+			t, &QLineEdit::textChanged,
+			[popup](const QString text) {
+				foreach(auto action, popup->actions())
+					action->setVisible(
+						action->text().isEmpty() ||
+						action->text().contains(
+							text,
+							Qt::CaseInsensitive));
 			});
 		wa->setDefaultWidget(t);
 		popup->addAction(wa);
@@ -773,8 +788,8 @@ QMenu *QuickAccess::_CreateParentSceneMenu()
 		return (QAction *)nullptr;
 	};
 
-	auto addSource = [this, getActionAfter, dark](QMenu *pop,
-						obs_sceneitem_t *sceneItem) {
+	auto addSource = [this, getActionAfter,
+			  dark](QMenu *pop, obs_sceneitem_t *sceneItem) {
 		auto scene = obs_sceneitem_get_scene(sceneItem);
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		const char *name = obs_source_get_name(sceneSource);
@@ -783,12 +798,13 @@ QMenu *QuickAccess::_CreateParentSceneMenu()
 		QWidgetAction *popupItem = new QWidgetAction(this);
 		QWidget *itemWidget = new QuickAccessSceneItem(this, sceneItem);
 		if (dark) {
-			itemWidget->setStyleSheet("QuickAccessSceneItem:hover {background: #333333;}");
+			itemWidget->setStyleSheet(
+				"QuickAccessSceneItem:hover {background: #333333;}");
+		} else {
+			itemWidget->setStyleSheet(
+				"QuickAccessSceneItem:hover {background: #aaaaaa;}");
 		}
-		else {
-			itemWidget->setStyleSheet("QuickAccessSceneItem:hover {background: #aaaaaa;}");
-		}
-		
+
 		popupItem->setDefaultWidget(itemWidget);
 		popupItem->setParent(pop);
 
@@ -1322,8 +1338,7 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 	_actionsToolbar->setSizePolicy(QSizePolicy::Maximum,
 				       QSizePolicy::Maximum);
 	_actionsToolbar->setStyleSheet(
-		"QToolBar{spacing: 0px;} QToolButton {margin-left: 0px; margin-right: 0px; background: none; border: none;}"
-	);
+		"QToolBar{spacing: 0px;} QToolButton {margin-left: 0px; margin-right: 0px; background: none; border: none;}");
 
 	_vis = new QCheckBox();
 	_vis->setProperty("visibilityCheckBox", true);
@@ -1333,7 +1348,6 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 	_vis->setAccessibleName("Source Visibility");
 	_vis->setAccessibleDescription("Source Visibility");
 	_vis->setToolTip("Source Visibility");
-	
 
 	auto actionTransform = new QAction(this);
 	actionTransform->setObjectName(QStringLiteral("actionTransform"));
@@ -1382,7 +1396,7 @@ void QuickAccessSceneItem::setHighlight(bool h)
 	setAutoFillBackground(h);
 }
 
-void QuickAccessSceneItem::paintEvent(QPaintEvent*)
+void QuickAccessSceneItem::paintEvent(QPaintEvent *)
 {
 	QStyleOption opt;
 	opt.initFrom(this);
