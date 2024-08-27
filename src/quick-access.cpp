@@ -16,7 +16,6 @@
 #include <QLineEdit>
 #include <QApplication>
 #include <QThread>
-#include <QtConcurrent>
 #include <QMetaObject>
 #include <QScrollArea>
 #include <QDialog>
@@ -24,7 +23,6 @@
 #include <QInputDialog>
 #include <QMainWindow>
 #include <QString>
-#include <QtConcurrent>
 #include <QScrollArea>
 #include <QTextStream>
 #include <QMenu>

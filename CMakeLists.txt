@@ -68,8 +68,8 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE OBS::${OBS_FRONTEND_API_NAME})
 
-find_package(Qt6 COMPONENTS Widgets Core Concurrent)
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Concurrent)
+find_package(Qt6 COMPONENTS Widgets Core)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
 target_compile_options(${PROJECT_NAME}
                        PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>)
 
