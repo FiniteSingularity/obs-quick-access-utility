@@ -34,6 +34,12 @@ class QuickAccess;
 class QuickAccessDock;
 class QuickAccessSourceModel;
 
+class DockMessage : public QWidget {
+	Q_OBJECT
+public:
+	DockMessage(QWidget* parent, std::string messageText, std::string iconPath = "");
+};
+
 class QuickAccessSourceList : public QListView {
 	Q_OBJECT
 public:
@@ -85,7 +91,7 @@ public:
 	~QuickAccessSceneItem();
 	void setHighlight(bool h);
 	//void mouseReleaseEvent(QMouseEvent *e) override;
-
+	void paintEvent(QPaintEvent*) override;
 private:
 	obs_sceneitem_t *_sceneItem = nullptr;
 	QLabel *_iconLabel = nullptr;
@@ -126,10 +132,10 @@ private:
 	QuickAccessDock *_dock;
 	QStackedWidget *_contents;
 	QScrollArea *_listsContainer;
-	QWidget *_emptySearch;
-	QWidget *_emptyManual;
-	QWidget *_emptyDynamic;
-	QWidget *_noSearchResults;
+	DockMessage *_emptySearch;
+	DockMessage *_emptyManual;
+	DockMessage *_emptyDynamic;
+	DockMessage *_noSearchResults;
 	QLineEdit *_searchText;
 	QToolBar *_actionsToolbar;
 	QAction *_actionAddSource = nullptr;

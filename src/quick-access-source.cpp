@@ -87,6 +87,7 @@ void QuickAccessSourceDelegate::paint(QPainter *painter,
 		std::string scenesIconPath = mode + "sources/scene.svg";
 		scenesIcon.addFile(scenesIconPath.c_str(), QSize(),
 				   QIcon::Normal, QIcon::Off);
+		
 		parentScenesButton.icon = scenesIcon;
 		parentScenesButton.iconSize = QSize(16, 16);
 		parentScenesButton.state = _filtersState |
@@ -135,8 +136,6 @@ void QuickAccessSourceDelegate::paint(QPainter *painter,
 		loc += inc;
 	}
 	textRect.setWidth(rect.width() - (loc + 2));
-
-	//style->drawControl(QStyle::CE_ItemViewItem, &option, painter, widget);
 	delete lw;
 }
 
@@ -155,11 +154,9 @@ bool QuickAccessSourceDelegate::editorEvent(QEvent *event,
 					    const QModelIndex &index)
 {
 	UNUSED_PARAMETER(model);
-	if (event->type() == QEvent::MouseButtonPress ||
-	    event->type() == QEvent::MouseButtonRelease ||
-	    event->type() == QEvent::MouseButtonDblClick) {
-
-	} else {
+	if (event->type() != QEvent::MouseButtonPress &&
+	    event->type() != QEvent::MouseButtonRelease &&
+	    event->type() != QEvent::MouseButtonDblClick) {
 		//ignoring other mouse event and reseting button's state
 		_propertiesState = QStyle::State_Raised;
 		_filtersState = QStyle::State_Raised;
