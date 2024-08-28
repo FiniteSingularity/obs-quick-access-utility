@@ -49,7 +49,7 @@ Manual docks allow you to add any sources, scenes, or groups that you need quick
 Dynamic docks have all of the same functionality/options of a manual dock, but are generated on the fly as you change scenes. A dynamic dock will show you all sources, including those in nested scenes that are being displayed from the current scene.
 
 ### Search Dock
-A search dock does excatly what you would think- giving you a search input to find a particular needle in the haystack of sources in your OBS. As you type characters in the search field, the search dock will match on source name, type, file path, URL, and filters.
+A search dock does exactly what you would think- giving you a search input to find a particular needle in the haystack of sources in your OBS. As you type characters in the search field, the search dock will match on source name, type, file path, URL, and filters.
 
 ![Search Dock](.github/assets/images/search-dock.png)
 
@@ -75,7 +75,7 @@ QAU provides a suite of tools that allow you to interact with, edit, and use the
 - **Rename**: Renames the source globally.
 - **Interact**: *For browser sources only*, opens an interactive browser window.
 - **Refresh**: *For browser sources only*, reloads the browser source.
-- **Activate/Deactive**: *For video capture devices only*, toggles the activated status of the source.
+- **Activate/Deactivate**: *For video capture devices only*, toggles the activated status of the source.
 - **Open Windowed Projector**: Opens a windowed projector.
 - **Fullscreen Projector**: Opens a fullscreen projector.
 
