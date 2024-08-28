@@ -54,7 +54,7 @@ A search dock does exactly what you would think- giving you a search input to fi
 ![Search Dock](.github/assets/images/search-dock.png)
 
 ## Quick Search
-Quick search provides a search pop-up that can be summoned and dismissed using a user-defined hotkey. As you interact with the pop-up, it works exactly like a search dock, but quickly gets out of the way when you are done using it.
+Quick Search provides a search pop-up that can be summoned and dismissed using a user-defined hotkey. As you interact with the pop-up, it works exactly like a search dock, but quickly gets out of the way when you are done using it. To use the Quick Search feature, you need to set up a hotkey. Go to `File -> Settings`, then select `Hotkeys`.  Find the `Opens Quick Search` field, and assign a hotkey. I find that `Ctrl + Space` works great.
 
 ![Quick Search](.github/assets/images/quick-search.png)
 
