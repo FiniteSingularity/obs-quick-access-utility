@@ -275,8 +275,6 @@ QuickAccessSource *QuickAccessSourceList::currentSource()
 
 void QuickAccessSourceList::mousePressEvent(QMouseEvent *event)
 {
-	blog(LOG_INFO, "Mouse Press");
-
 	auto idx = indexAt(event->pos());
 	if (idx.isValid()) {
 		setCurrentIndex(idx);
@@ -529,8 +527,6 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 
 QuickAccess::~QuickAccess()
 {
-	blog(LOG_INFO,
-	     "QuickAccess::~QuickAccess() called (Dock was destroyed)");
 	if (_current) {
 		obs_weak_source_release(_current);
 	}
@@ -845,7 +841,6 @@ QMenu *QuickAccess::_CreateParentSceneMenu()
 void QuickAccess::Save(obs_data_t *saveObj)
 {
 
-	blog(LOG_INFO, "SAVING");
 	if (_dock->GetType() == "Manual") {
 		auto itemsArr = obs_data_array_create();
 		auto &displayGroups = _dock->DisplayGroups();
@@ -991,8 +986,6 @@ QDialog *QuickAccess::CreateAddSourcePopupMenu()
 	searchText->connect(
 		searchText, &QLineEdit::textChanged,
 		[allSourcesList](const QString text) {
-			blog(LOG_INFO, "=== Search List Size: %i",
-			     allSourcesList->count());
 			for (int i = 0; i < allSourcesList->count(); i++) {
 				QListWidgetItem *item = allSourcesList->item(i);
 				QString wName = item->text();
@@ -1483,7 +1476,6 @@ UpdateDockDialog::UpdateDockDialog(QuickAccessDock *dock, QWidget *parent)
 
 void UpdateDockDialog::on_update_dock()
 {
-	blog(LOG_INFO, "Update Dock");
 	_dock->SetName(QT_TO_UTF8(_inputName->text()));
 	_dock->SetProperties(_showProperties->isChecked());
 	_dock->SetFilters(_showFilters->isChecked());
@@ -1495,7 +1487,6 @@ void UpdateDockDialog::on_update_dock()
 
 void UpdateDockDialog::on_cancel()
 {
-	blog(LOG_INFO, "Cancel");
 	done(DialogCode::Rejected);
 }
 
