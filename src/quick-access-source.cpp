@@ -367,7 +367,7 @@ QuickAccessSource::QuickAccessSource(obs_source_t *source)
 	_tmpName = obs_source_get_name(source);
 	_sourceClass = obs_source_is_group(source)   ? SourceClass::Group
 		       : obs_source_is_scene(source) ? SourceClass::Scene
-		       : SourceClass::Source;
+						     : SourceClass::Source;
 	blog(LOG_INFO, "====== Grabbed %s", _tmpName.c_str());
 	BuildSearchTerms();
 }
@@ -516,13 +516,11 @@ void QuickAccessSource::BuildSearchTerms()
 	if (!source_type_name) {
 		_searchTerms[SearchType::Type].push_back(source_id);
 		_searchTerms[SearchType::Type].push_back("<invalid>");
-	}
-	else {
+	} else {
 		_searchTerms[SearchType::Type].push_back(source_id);
 		_searchTerms[SearchType::Type].push_back(
 			obs_source_get_display_name(source_id));
 	}
-
 
 	std::vector<obs_source_t *> filters;
 	// Source Filters
