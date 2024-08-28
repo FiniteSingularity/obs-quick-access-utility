@@ -1,5 +1,5 @@
 <!-- Title -->
-# OBS Quick Access Utility
+# Quick Access Utility
 
 <p align="center">
     <i align="center"> Moo-ve over, cluttered docks. No more bull. Making your sources udderly easy to cow-nect with.</i>
