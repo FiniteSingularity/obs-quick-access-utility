@@ -578,6 +578,7 @@ QIcon QuickAccessUtility::GetGroupIcon() const
 bool QuickAccessUtility::AddSource(void *data, obs_source_t *source)
 {
 	UNUSED_PARAMETER(data);
+
 	obs_source_type st = obs_source_get_type(source);
 	if (st == OBS_SOURCE_TYPE_FILTER || st == OBS_SOURCE_TYPE_TRANSITION) {
 		return true;
