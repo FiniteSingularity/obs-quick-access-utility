@@ -94,7 +94,6 @@ QuickAccessDock::QuickAccessDock(QWidget *parent, obs_data_t *obsData,
 
 QuickAccessDock::~QuickAccessDock()
 {
-	blog(LOG_INFO, "QuickAccessDock::~QuickAccessDock()");
 	_ClearSources();
 	if (_dockWidget) {
 		delete _dockWidget;
@@ -142,7 +141,6 @@ void QuickAccessDock::SetCurrentScene(QuickAccessSource *currentScene)
 	if (!_ready) {
 		return;
 	}
-	blog(LOG_INFO, "QuickAccessDock::SetCurrentScene");
 	if (_dockType == "Dynamic") {
 		UpdateDynamicDock(true);
 	}

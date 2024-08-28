@@ -229,10 +229,8 @@ bool QuickAccessSourceDelegate::editorEvent(QEvent *event,
 
 	if (_dock->ClickableScenes() &&
 	    event->type() == QEvent::MouseButtonDblClick) {
-		blog(LOG_INFO, "DBL CLICK!!!!!");
 	} else if (_dock->ClickableScenes() &&
 		   event->type() == QEvent::MouseButtonRelease) {
-		blog(LOG_INFO, "SINGLE CLICK!!!!");
 		emit activateScene(index);
 	}
 
@@ -367,16 +365,15 @@ QuickAccessSource::QuickAccessSource(obs_source_t *source)
 	}
 	_source = obs_source_get_weak_source(source);
 	_tmpName = obs_source_get_name(source);
-	blog(LOG_INFO, "!!!!! QAS:Grabbed\t%s", _tmpName.c_str());
 	_sourceClass = obs_source_is_group(source)   ? SourceClass::Group
 		       : obs_source_is_scene(source) ? SourceClass::Scene
 						     : SourceClass::Source;
+	blog(LOG_INFO, "====== Grabbed %s", _tmpName.c_str());
 	BuildSearchTerms();
 }
 
 QuickAccessSource::~QuickAccessSource()
 {
-	blog(LOG_INFO, "!!!!! QAS:Released\t%s", _tmpName.c_str());
 	for (auto &dock : _docks) {
 		dock->RemoveSource(this, false);
 	}
@@ -388,6 +385,7 @@ QuickAccessSource::~QuickAccessSource()
 	}
 
 	obs_weak_source_release(_source);
+	blog(LOG_INFO, "===== Released %s", _tmpName.c_str());
 }
 
 obs_source_t *QuickAccessSource::get()
@@ -514,14 +512,15 @@ void QuickAccessSource::BuildSearchTerms()
 
 	// Source Type Id and Name
 	const char *source_id = obs_source_get_id(source);
-	// blog(LOG_INFO, "Source ID: %s", source_id);
 	const char *source_type_name = obs_source_get_display_name(source_id);
 	if (!source_type_name) {
-		return;
+		_searchTerms[SearchType::Type].push_back(source_id);
+		_searchTerms[SearchType::Type].push_back("<invalid>");
+	} else {
+		_searchTerms[SearchType::Type].push_back(source_id);
+		_searchTerms[SearchType::Type].push_back(
+			obs_source_get_display_name(source_id));
 	}
-	_searchTerms[SearchType::Type].push_back(source_id);
-	_searchTerms[SearchType::Type].push_back(
-		obs_source_get_display_name(source_id));
 
 	std::vector<obs_source_t *> filters;
 	// Source Filters

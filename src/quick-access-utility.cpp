@@ -38,7 +38,6 @@ QuickAccessUtility::QuickAccessUtility(obs_module_t *m)
 
 QuickAccessUtility::~QuickAccessUtility()
 {
-	blog(LOG_INFO, "QuickAccessUtility::~QuickAccessUtility");
 	//delete _currentScene;
 	// Dont need to delete dock pointers, as they are managed by OBS.
 	obs_frontend_remove_event_callback(QuickAccessUtility::FrontendCallback,
@@ -51,7 +50,6 @@ void QuickAccessUtility::SourceCreated(void *data, calldata_t *params)
 	if (!qau->loaded) {
 		return;
 	}
-	blog(LOG_INFO, "Source Created!");
 	UNUSED_PARAMETER(data);
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
@@ -78,7 +76,6 @@ void QuickAccessUtility::SourceDestroyed(void *data, calldata_t *params)
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
 	std::string uuid = obs_source_get_uuid(source);
-	blog(LOG_INFO, "Source Destroyed!");
 	//QMetaObject::invokeMethod(QCoreApplication::instance()->thread(), [uuid]() {
 	std::unique_lock lock(qau->_m);
 	auto it = qau->_allSources.find(uuid);
@@ -109,7 +106,6 @@ void QuickAccessUtility::SourceUpdate(void *data, calldata_t *params)
 
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
-	//blog(LOG_INFO, "Updated Source: %s", obs_source_get_name(source));
 	std::string uuid = obs_source_get_uuid(source);
 	if (qau->_allSources.count(uuid) == 0) {
 		return;
@@ -169,7 +165,6 @@ void QuickAccessUtility::RemoveDock(int idx, bool cleanup)
 void QuickAccessUtility::Load(obs_data_t *data)
 {
 	std::unique_lock lock(_m);
-	blog(LOG_INFO, "QAU::Load called.");
 	RemoveDocks();
 	_allSources.clear();
 	// Add Scenes and sources to _allSources
@@ -229,7 +224,6 @@ void QuickAccessUtility::Load(obs_data_t *data)
 
 void QuickAccessUtility::Save(obs_data_t *data)
 {
-	blog(LOG_INFO, "QAU::Save called.");
 	auto saveData = obs_data_create();
 	auto dockArray = obs_data_array_create();
 	obs_data_set_bool(saveData, "first_run", _firstRun);
@@ -354,30 +348,24 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 {
 	UNUSED_PARAMETER(data);
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-		blog(LOG_INFO, "============== QAU::Finished Loading");
 		qau->_sceneCollectionChanging = false;
 		qau->_SetupSignals();
 		qau->SceneChanged();
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
-		blog(LOG_INFO, "============== QAU::Scene Collection Cleanup");
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(),
 			[]() { qau->UnloadDocks(); });
 		qau->loaded = false;
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
-		blog(LOG_INFO, "============== QAU::Frontend Exit");
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-		blog(LOG_INFO, "============== QAU::Scene Collection Changing");
 		qau->_TearDownSignals();
 		qau->_sceneCollectionChanging = true;
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-		blog(LOG_INFO, "============== QAU::SCENE COLLECTION CHANGED");
 		qau->_sceneCollectionChanging = false;
 		qau->_SetupSignals();
 		qau->InitializeSearch();
 		qau->SceneChanged();
 	} else if (event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
-		blog(LOG_INFO, "============== QAU::SCRIPTING SHUTDOWN");
 		qau->_TearDownSignals();
 		QMetaObject::invokeMethod(
 			QCoreApplication::instance()->thread(), []() {
@@ -389,7 +377,6 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 				}
 			});
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_CHANGED) {
-		blog(LOG_INFO, "============== QAU::SCENE CHANGED");
 		if (!qau->_sceneCollectionChanging) {
 			qau->SceneChanged();
 		}
@@ -441,7 +428,6 @@ void QuickAccessUtility::SceneChanged()
 
 void QuickAccessUtility::SourceAddedToScene(void *data, calldata_t *params)
 {
-	blog(LOG_INFO, "SOURCE ADDED TO THE SCENE!");
 	UNUSED_PARAMETER(data);
 	obs_scene_t *parentScene =
 		static_cast<obs_scene_t *>(calldata_ptr(params, "scene"));
@@ -466,7 +452,6 @@ void QuickAccessUtility::SourceAddedToScene(void *data, calldata_t *params)
 
 void QuickAccessUtility::SourceRemovedFromScene(void *data, calldata_t *params)
 {
-	blog(LOG_INFO, "SOURCE REMOVED FROM THE SCENE!");
 	UNUSED_PARAMETER(data);
 	obs_scene_t *parentScene =
 		static_cast<obs_scene_t *>(calldata_ptr(params, "scene"));
@@ -593,6 +578,7 @@ QIcon QuickAccessUtility::GetGroupIcon() const
 bool QuickAccessUtility::AddSource(void *data, obs_source_t *source)
 {
 	UNUSED_PARAMETER(data);
+
 	obs_source_type st = obs_source_get_type(source);
 	if (st == OBS_SOURCE_TYPE_FILTER || st == OBS_SOURCE_TYPE_TRANSITION) {
 		return true;
@@ -1014,7 +1000,6 @@ CreateDockDialog::CreateDockDialog(QWidget *parent) : QDialog(parent)
 
 void CreateDockDialog::on_create_dock()
 {
-	blog(LOG_INFO, "Create Dock");
 	CreateDockFormData formData;
 	formData.dockName = QT_TO_UTF8(_inputName->text());
 	formData.dockType = QT_TO_UTF8(_inputType->currentText());
@@ -1028,7 +1013,6 @@ void CreateDockDialog::on_create_dock()
 
 void CreateDockDialog::on_cancel()
 {
-	blog(LOG_INFO, "Cancel");
 	done(DialogCode::Rejected);
 }
 
@@ -1122,7 +1106,6 @@ extern "C" EXPORT void InitializeQAU(obs_module_t *module,
 
 extern "C" EXPORT void ShutdownQAU()
 {
-	blog(LOG_INFO, "ShutdownQAU called.");
 	obs_frontend_remove_save_callback(frontendSaveLoad, qau);
 	delete qau;
 }
