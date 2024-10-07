@@ -104,7 +104,7 @@ private:
 	bool _sceneCollectionChanging = true;
 	bool _sourceCloneInstalled = false;
 	bool _dskInstalled = false;
-	obs_data_array_t* _dockSettings;
+	obs_data_array_t *_dockSettings;
 
 	obs_hotkey_id _quick_search_hotkey_id;
 

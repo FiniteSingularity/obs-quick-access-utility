@@ -205,7 +205,7 @@ void QuickAccessUtility::_SetupDocks()
 	obs_enum_scenes(QuickAccessUtility::LinkScenes, qau);
 
 	const auto mainWindow =
-		static_cast<QMainWindow*>(obs_frontend_get_main_window());
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 
 	for (size_t i = 0; i < obs_data_array_count(_dockSettings); i++) {
 		auto dockData = obs_data_array_item(_dockSettings, i);
@@ -220,7 +220,7 @@ void QuickAccessUtility::_SetupDocks()
 	// the first time we pop open the search, it is a tiny
 	// window and then disappears.
 	if (!QuickAccessSearchModal::dialog) {
-		const QRect& hostRect = mainWindow->geometry();
+		const QRect &hostRect = mainWindow->geometry();
 
 		QuickAccessSearchModal::dialog =
 			new QuickAccessSearchModal(mainWindow);
@@ -359,7 +359,8 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 {
 	UNUSED_PARAMETER(data);
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-		blog(LOG_INFO, "======== OBS_FRONTEND_EVENT_FINISHED_LOADING called.");
+		blog(LOG_INFO,
+		     "======== OBS_FRONTEND_EVENT_FINISHED_LOADING called.");
 		qau->_sceneCollectionChanging = false;
 		qau->_SetupDocks();
 		qau->_SetupSignals();
@@ -374,7 +375,8 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		qau->_TearDownSignals();
 		qau->_sceneCollectionChanging = true;
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-		blog(LOG_INFO, "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED called.");
+		blog(LOG_INFO,
+		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED called.");
 		qau->_sceneCollectionChanging = false;
 		qau->_SetupDocks();
 		qau->_SetupSignals();
@@ -594,21 +596,18 @@ bool QuickAccessUtility::AddSource(void *data, obs_source_t *source)
 {
 	UNUSED_PARAMETER(data);
 
+	bool priv = obs_obj_is_private(source);
+
+	if (priv) {
+		return true;
+	}
+
 	obs_source_type st = obs_source_get_type(source);
 	if (st == OBS_SOURCE_TYPE_FILTER || st == OBS_SOURCE_TYPE_TRANSITION) {
 		return true;
 	}
+
 	std::string uuid = obs_source_get_uuid(source);
-
-	bool priv = obs_obj_is_private(source);
-
-	const char* source_id = obs_source_get_id(source);
-	const char* source_type_name = obs_source_get_display_name(source_id);
-	const char* source_name = obs_source_get_name(source);
-	std::string name = source_name ? source_name : "NULL NAME";
-
-	if (priv)
-		return true;
 
 	if (qau->_allSources.find(uuid) == qau->_allSources.end()) {
 		qau->_allSources.emplace(
