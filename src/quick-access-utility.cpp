@@ -183,6 +183,8 @@ void QuickAccessUtility::Load(obs_data_t *data)
 	_firstRun = obs_data_get_bool(qauData, "first_run");
 	_dockSettings = obs_data_get_array(qauData, "docks");
 
+	_SetupDocks();
+
 	auto quickSearchHotkey =
 		obs_data_get_array(qauData, "quick_search_hotkey");
 	obs_hotkey_load(_quick_search_hotkey_id, quickSearchHotkey);
@@ -195,7 +197,7 @@ void QuickAccessUtility::Load(obs_data_t *data)
 
 void QuickAccessUtility::_SetupDocks()
 {
-	std::unique_lock lock(_m);
+	//std::unique_lock lock(_m);
 
 	// Add Scenes and sources to _allSources
 	obs_enum_all_sources(QuickAccessUtility::AddSource, qau);
@@ -362,7 +364,7 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		blog(LOG_INFO,
 		     "======== OBS_FRONTEND_EVENT_FINISHED_LOADING called.");
 		qau->_sceneCollectionChanging = false;
-		qau->_SetupDocks();
+		//qau->_SetupDocks();
 		qau->_SetupSignals();
 		qau->SceneChanged();
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
@@ -378,7 +380,7 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		blog(LOG_INFO,
 		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED called.");
 		qau->_sceneCollectionChanging = false;
-		qau->_SetupDocks();
+		//qau->_SetupDocks();
 		qau->_SetupSignals();
 		qau->InitializeSearch();
 		qau->SceneChanged();
@@ -597,13 +599,9 @@ bool QuickAccessUtility::AddSource(void *data, obs_source_t *source)
 	UNUSED_PARAMETER(data);
 
 	bool priv = obs_obj_is_private(source);
-
-	if (priv) {
-		return true;
-	}
-
 	obs_source_type st = obs_source_get_type(source);
-	if (st == OBS_SOURCE_TYPE_FILTER || st == OBS_SOURCE_TYPE_TRANSITION) {
+	if (priv || st == OBS_SOURCE_TYPE_FILTER ||
+	    st == OBS_SOURCE_TYPE_TRANSITION) {
 		return true;
 	}
 
