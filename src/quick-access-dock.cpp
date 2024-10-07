@@ -233,9 +233,10 @@ void QuickAccessDock::DrawDock(obs_data_t *obsData)
 
 	const auto d = static_cast<QDockWidget *>(parentWidget());
 
-	const auto floating = obs_data_get_bool(obsData, "dock_floating");
-	if (d->isFloating() != floating) {
-		d->setFloating(floating);
+	if (obs_data_get_bool(obsData, "dock_hidden")) {
+		d->hide();
+	} else {
+		d->show();
 	}
 
 	const auto area = static_cast<Qt::DockWidgetArea>(
@@ -244,16 +245,15 @@ void QuickAccessDock::DrawDock(obs_data_t *obsData)
 		mainWindow->addDockWidget(area, d);
 	}
 
+	const auto floating = obs_data_get_bool(obsData, "dock_floating");
+	if (d->isFloating() != floating) {
+		d->setFloating(floating);
+	}
+
 	const char *geometry = obs_data_get_string(obsData, "dock_geometry");
 	if (geometry && strlen(geometry)) {
 		d->restoreGeometry(
 			QByteArray::fromBase64(QByteArray(geometry)));
-	}
-
-	if (obs_data_get_bool(obsData, "dock_hidden")) {
-		d->hide();
-	} else {
-		d->show();
 	}
 }
 

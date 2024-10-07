@@ -93,6 +93,7 @@ private:
 	void _TearDownSignals();
 	void _SetCurrentSceneSources();
 	void _AddChildren(QuickAccessSource *scene);
+	void _SetupDocks();
 
 	obs_module_t *_module = nullptr;
 	std::vector<QuickAccessDock *> _docks;
@@ -103,6 +104,7 @@ private:
 	bool _sceneCollectionChanging = true;
 	bool _sourceCloneInstalled = false;
 	bool _dskInstalled = false;
+	obs_data_array_t *_dockSettings;
 
 	obs_hotkey_id _quick_search_hotkey_id;
 

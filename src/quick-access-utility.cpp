@@ -26,7 +26,8 @@ QuickAccessSearchModal *QuickAccessSearchModal::dialog = nullptr;
 QuickAccessUtility::QuickAccessUtility(obs_module_t *m)
 	: _module(m),
 	  _firstRun(false),
-	  _currentScene(nullptr)
+	  _currentScene(nullptr),
+	  _dockSettings(nullptr)
 {
 	obs_frontend_add_event_callback(QuickAccessUtility::FrontendCallback,
 					this);
@@ -53,6 +54,9 @@ void QuickAccessUtility::SourceCreated(void *data, calldata_t *params)
 	UNUSED_PARAMETER(data);
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
+	if (obs_obj_is_private(source)) {
+		return;
+	}
 	std::string uuid = obs_source_get_uuid(source);
 	QuickAccessUtility::AddSource(nullptr, source);
 	if (qau->_allSources.count(uuid) == 0) {
@@ -167,15 +171,7 @@ void QuickAccessUtility::Load(obs_data_t *data)
 	std::unique_lock lock(_m);
 	RemoveDocks();
 	_allSources.clear();
-	// Add Scenes and sources to _allSources
-	obs_enum_all_sources(QuickAccessUtility::AddSource, qau);
-	obs_enum_scenes(QuickAccessUtility::AddSource, qau);
 
-	// Link scenes/groups with their children
-	obs_enum_scenes(QuickAccessUtility::LinkScenes, qau);
-
-	const auto mainWindow =
-		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	auto qauData = obs_data_get_obj(data, "quick_access_utility");
 	if (!qauData) {
 		qauData = obs_data_create();
@@ -185,14 +181,9 @@ void QuickAccessUtility::Load(obs_data_t *data)
 		obs_data_array_release(docks);
 	}
 	_firstRun = obs_data_get_bool(qauData, "first_run");
-	auto docks = obs_data_get_array(qauData, "docks");
-	for (size_t i = 0; i < obs_data_array_count(docks); i++) {
-		auto dockData = obs_data_array_item(docks, i);
-		auto d = new QuickAccessDock(mainWindow, dockData);
-		_docks.push_back(d);
-		obs_data_release(dockData);
-	}
-	obs_data_array_release(docks);
+	_dockSettings = obs_data_get_array(qauData, "docks");
+
+	_SetupDocks();
 
 	auto quickSearchHotkey =
 		obs_data_get_array(qauData, "quick_search_hotkey");
@@ -201,18 +192,40 @@ void QuickAccessUtility::Load(obs_data_t *data)
 
 	obs_data_release(qauData);
 
+	//loaded = true;
+}
+
+void QuickAccessUtility::_SetupDocks()
+{
+	//std::unique_lock lock(_m);
+
+	// Add Scenes and sources to _allSources
+	obs_enum_all_sources(QuickAccessUtility::AddSource, qau);
+	obs_enum_scenes(QuickAccessUtility::AddSource, qau);
+
+	// Link scenes/groups with their children
+	obs_enum_scenes(QuickAccessUtility::LinkScenes, qau);
+
+	const auto mainWindow =
+		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+
+	for (size_t i = 0; i < obs_data_array_count(_dockSettings); i++) {
+		auto dockData = obs_data_array_item(_dockSettings, i);
+		auto d = new QuickAccessDock(mainWindow, dockData);
+		_docks.push_back(d);
+		obs_data_release(dockData);
+	}
+	obs_data_array_release(_dockSettings);
+
 	// Set up the quick search dialog
 	// This shouldn't need to be done, but for some reason
 	// the first time we pop open the search, it is a tiny
 	// window and then disappears.
 	if (!QuickAccessSearchModal::dialog) {
-		const auto main_window = static_cast<QMainWindow *>(
-			obs_frontend_get_main_window());
-		const QRect &hostRect = main_window->geometry();
+		const QRect &hostRect = mainWindow->geometry();
 
 		QuickAccessSearchModal::dialog =
-			new QuickAccessSearchModal(static_cast<QMainWindow *>(
-				obs_frontend_get_main_window()));
+			new QuickAccessSearchModal(mainWindow);
 		auto searchDlg = QuickAccessSearchModal::dialog;
 		searchDlg->open();
 		searchDlg->move(hostRect.center() - searchDlg->rect().center());
@@ -348,7 +361,10 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 {
 	UNUSED_PARAMETER(data);
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		blog(LOG_INFO,
+		     "======== OBS_FRONTEND_EVENT_FINISHED_LOADING called.");
 		qau->_sceneCollectionChanging = false;
+		//qau->_SetupDocks();
 		qau->_SetupSignals();
 		qau->SceneChanged();
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
@@ -361,7 +377,10 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 		qau->_TearDownSignals();
 		qau->_sceneCollectionChanging = true;
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
+		blog(LOG_INFO,
+		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED called.");
 		qau->_sceneCollectionChanging = false;
+		//qau->_SetupDocks();
 		qau->_SetupSignals();
 		qau->InitializeSearch();
 		qau->SceneChanged();
@@ -579,11 +598,15 @@ bool QuickAccessUtility::AddSource(void *data, obs_source_t *source)
 {
 	UNUSED_PARAMETER(data);
 
+	bool priv = obs_obj_is_private(source);
 	obs_source_type st = obs_source_get_type(source);
-	if (st == OBS_SOURCE_TYPE_FILTER || st == OBS_SOURCE_TYPE_TRANSITION) {
+	if (priv || st == OBS_SOURCE_TYPE_FILTER ||
+	    st == OBS_SOURCE_TYPE_TRANSITION) {
 		return true;
 	}
+
 	std::string uuid = obs_source_get_uuid(source);
+
 	if (qau->_allSources.find(uuid) == qau->_allSources.end()) {
 		qau->_allSources.emplace(
 			uuid, std::make_unique<QuickAccessSource>(source));
@@ -1117,6 +1140,7 @@ extern "C" EXPORT void CheckModules()
 
 void frontendSaveLoad(obs_data_t *save_data, bool saving, void *data)
 {
+	blog(LOG_INFO, "======== obs_frontend_save_load_callback called.");
 	auto quickAccessUtility = static_cast<QuickAccessUtility *>(data);
 	if (saving) {
 		quickAccessUtility->Save(save_data);

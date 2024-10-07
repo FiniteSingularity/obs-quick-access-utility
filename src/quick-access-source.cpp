@@ -368,7 +368,6 @@ QuickAccessSource::QuickAccessSource(obs_source_t *source)
 	_sourceClass = obs_source_is_group(source)   ? SourceClass::Group
 		       : obs_source_is_scene(source) ? SourceClass::Scene
 						     : SourceClass::Source;
-	blog(LOG_INFO, "====== Grabbed %s", _tmpName.c_str());
 	BuildSearchTerms();
 }
 
