@@ -313,18 +313,18 @@ void QuickAccessUtility::_AddChildren(QuickAccessSource *scene)
 void QuickAccessUtility::_SetupSignals()
 {
 	signal_handler_t *signalHandler = obs_get_signal_handler();
-	signal_handler_connect_ref(signalHandler, "source_create",
-				   QuickAccessUtility::SourceCreated, qau);
-	signal_handler_connect_ref(signalHandler, "source_destroy",
-				   QuickAccessUtility::SourceDestroyed, qau);
-	signal_handler_connect_ref(signalHandler, "source_rename",
-				   QuickAccessUtility::SourceRename, qau);
-	signal_handler_connect_ref(signalHandler, "source_update",
-				   QuickAccessUtility::SourceUpdate, qau);
-	signal_handler_connect_ref(signalHandler, "source_filter_add",
-				   QuickAccessUtility::SourceUpdate, qau);
-	signal_handler_connect_ref(signalHandler, "source_filter_remove",
-				   QuickAccessUtility::SourceUpdate, qau);
+	signal_handler_connect(signalHandler, "source_create",
+			       QuickAccessUtility::SourceCreated, qau);
+	signal_handler_connect(signalHandler, "source_destroy",
+			       QuickAccessUtility::SourceDestroyed, qau);
+	signal_handler_connect(signalHandler, "source_rename",
+			       QuickAccessUtility::SourceRename, qau);
+	signal_handler_connect(signalHandler, "source_update",
+			       QuickAccessUtility::SourceUpdate, qau);
+	signal_handler_connect(signalHandler, "source_filter_add",
+			       QuickAccessUtility::SourceUpdate, qau);
+	signal_handler_connect(signalHandler, "source_filter_remove",
+			       QuickAccessUtility::SourceUpdate, qau);
 }
 
 void QuickAccessUtility::_TearDownSignals()
@@ -431,10 +431,10 @@ void QuickAccessUtility::SceneChanged()
 			obs_source_get_signal_handler(newScene);
 		_currentScene = qaNewScene;
 
-		signal_handler_connect_ref(
-			signalHandler, "item_add",
-			QuickAccessUtility::SourceAddedToScene, qau);
-		signal_handler_connect_ref(
+		signal_handler_connect(signalHandler, "item_add",
+				       QuickAccessUtility::SourceAddedToScene,
+				       qau);
+		signal_handler_connect(
 			signalHandler, "item_remove",
 			QuickAccessUtility::SourceRemovedFromScene, qau);
 		_SetCurrentSceneSources();
