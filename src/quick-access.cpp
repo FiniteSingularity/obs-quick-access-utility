@@ -456,6 +456,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_actionAddSource->setObjectName(
 			QStringLiteral("actionAddSource"));
 		_actionAddSource->setProperty("themeID", "addIconSmall");
+		_actionAddSource->setProperty("class", "icon-plus");
 		_actionAddSource->setText(QT_UTF8(obs_module_text("Add")));
 		connect(_actionAddSource, SIGNAL(triggered()), this,
 			SLOT(on_actionAddSource_triggered()));
@@ -467,6 +468,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_actionRemoveSource->setShortcutContext(
 			Qt::WidgetWithChildrenShortcut);
 		_actionRemoveSource->setProperty("themeID", "removeIconSmall");
+		_actionRemoveSource->setProperty("class", "icon-minus");
 		_actionRemoveSource->setText(
 			QT_UTF8(obs_module_text("Remove")));
 		connect(_actionRemoveSource, SIGNAL(triggered()), this,
@@ -479,6 +481,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_actionSourceUp->setObjectName(
 			QStringLiteral("actionSourceUp"));
 		_actionSourceUp->setProperty("themeID", "upArrowIconSmall");
+		_actionSourceUp->setProperty("class", "icon-up");
 		_actionSourceUp->setText(QT_UTF8(obs_module_text("MoveUp")));
 		connect(_actionSourceUp, SIGNAL(triggered()), this,
 			SLOT(on_actionSourceUp_triggered()));
@@ -488,6 +491,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 		_actionSourceDown->setObjectName(
 			QStringLiteral("actionSourceDown"));
 		_actionSourceDown->setProperty("themeID", "downArrowIconSmall");
+		_actionSourceDown->setProperty("class", "icon-down");
 		_actionSourceDown->setText(
 			QT_UTF8(obs_module_text("MoveDown")));
 		connect(_actionSourceDown, SIGNAL(triggered()), this,
@@ -506,6 +510,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 	_actionDockProperties = new QAction(this);
 	_actionDockProperties->setObjectName(QStringLiteral("actionSourceUp"));
 	_actionDockProperties->setProperty("themeID", "propertiesIconSmall");
+	_actionDockProperties->setProperty("class", "icon-gear");
 	_actionDockProperties->setText(QT_UTF8(obs_module_text("Dock Props")));
 	connect(_actionDockProperties, SIGNAL(triggered()), this,
 		SLOT(on_actionDockProperties_triggered()));
@@ -1333,6 +1338,7 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 
 	_vis = new QCheckBox();
 	_vis->setProperty("visibilityCheckBox", true);
+	_vis->setProperty("class", "indicator-visibility");
 	_vis->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
 	_vis->setChecked(sourceVisible);
 	_vis->setStyleSheet("background: none");
@@ -1344,6 +1350,7 @@ QuickAccessSceneItem::QuickAccessSceneItem(QWidget *parent,
 	actionTransform->setObjectName(QStringLiteral("actionTransform"));
 	actionTransform->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	actionTransform->setProperty("themeID", "cogsIcon");
+	actionTransform->setProperty("class", "icon-gear");
 	actionTransform->setText(QT_UTF8(obs_module_text("Transformation")));
 	connect(actionTransform, SIGNAL(triggered()), this,
 		SLOT(on_actionTransform_triggered()));

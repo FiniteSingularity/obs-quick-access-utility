@@ -668,6 +668,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 
 	auto headerProperties = new QPushButton();
 	headerProperties->setProperty("themeID", "propertiesIconSmall");
+	headerProperties->setProperty("class", "icon-gear");
 	layout->addWidget(headerProperties);
 	headerProperties->setDisabled(true);
 	headerProperties->setAccessibleDescription("Show Properties Button?");
@@ -677,6 +678,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 
 	auto headerFilters = new QPushButton();
 	headerFilters->setProperty("themeID", "filtersIcon");
+	headerFilters->setProperty("class", "icon-filter");
 	layout->addWidget(headerFilters);
 	headerFilters->setDisabled(true);
 	headerFilters->setAccessibleDescription("Show Filters Button?");
@@ -694,6 +696,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 
 	auto headerClickableScenes = new QPushButton();
 	headerClickableScenes->setProperty("themeID", "playIcon");
+	headerClickableScenes->setProperty("class", "icon-media-play");
 	layout->addWidget(headerClickableScenes);
 	headerClickableScenes->setDisabled(true);
 	headerClickableScenes->setAccessibleDescription("Clickable Scenes?");
@@ -739,6 +742,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	_actionAddDock = new QAction(this);
 	_actionAddDock->setObjectName(QStringLiteral("actionAddDock"));
 	_actionAddDock->setProperty("themeID", "addIconSmall");
+	_actionAddDock->setProperty("class", "icon-plus");
 	_actionAddDock->setText(QT_UTF8(obs_module_text("New Dock")));
 	connect(_actionAddDock, SIGNAL(triggered()), this,
 		SLOT(on_actionAddDock_triggered()));
@@ -748,6 +752,7 @@ QuickAccessUtilityDialog::QuickAccessUtilityDialog(QWidget *parent)
 	_actionRemoveDock->setObjectName(QStringLiteral("actionRemoveDock"));
 	_actionRemoveDock->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	_actionRemoveDock->setProperty("themeID", "removeIconSmall");
+	_actionRemoveDock->setProperty("class", "icon-minus");
 	_actionRemoveDock->setText(QT_UTF8(obs_module_text("Remove Dock")));
 	_actionRemoveDock->setEnabled(false);
 	connect(_actionRemoveDock, SIGNAL(triggered()), this,
