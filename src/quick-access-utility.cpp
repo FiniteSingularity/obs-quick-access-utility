@@ -313,18 +313,6 @@ void QuickAccessUtility::_AddChildren(QuickAccessSource *scene)
 void QuickAccessUtility::_SetupSignals()
 {
 	signal_handler_t *signalHandler = obs_get_signal_handler();
-	//signal_handler_connect(signalHandler, "source_create",
-	//		       QuickAccessUtility::SourceCreated, qau);
-	//signal_handler_connect(signalHandler, "source_destroy",
-	//		       QuickAccessUtility::SourceDestroyed, qau);
-	//signal_handler_connect(signalHandler, "source_rename",
-	//		       QuickAccessUtility::SourceRename, qau);
-	//signal_handler_connect(signalHandler, "source_update",
-	//		       QuickAccessUtility::SourceUpdate, qau);
-	//signal_handler_connect(signalHandler, "source_filter_add",
-	//		       QuickAccessUtility::SourceUpdate, qau);
-	//signal_handler_connect(signalHandler, "source_filter_remove",
-	//		       QuickAccessUtility::SourceUpdate, qau);
 	_sourceCreateSig.Connect(signalHandler, "source_create",
 				 QuickAccessUtility::SourceCreated, this);
 	_sourceDestroySig.Connect(signalHandler, "source_release",
@@ -341,18 +329,12 @@ void QuickAccessUtility::_SetupSignals()
 
 void QuickAccessUtility::_TearDownSignals()
 {
-	blog(LOG_INFO, "TearDownSignals Called!");
-	signal_handler_t *signalHandler = obs_get_signal_handler();
 	_sourceCreateSig.Disconnect();
 	_sourceDestroySig.Disconnect();
 	_sourceRenameSig.Disconnect();
 	_sourceUpdateSig.Disconnect();
 	_sourceFilterAddSig.Disconnect();
 	_sourceFilterRemoveSig.Disconnect();
-	if (_currentScene) {
-		_itemAddSig.Disconnect();
-		_itemRemoveSig.Disconnect();
-	}
 }
 
 void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
@@ -360,15 +342,11 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 {
 	UNUSED_PARAMETER(data);
 	if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-		blog(LOG_INFO,
-		     "======== OBS_FRONTEND_EVENT_FINISHED_LOADING called.");
 		qau->_sceneCollectionChanging = false;
 		//qau->_SetupDocks();
 		qau->_SetupSignals();
 		qau->SceneChanged();
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
-		blog(LOG_INFO,
-		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP called.");
 		qau->_TearDownSignals();
 		qau->_sceneCollectionChanging = true;
 
@@ -376,16 +354,7 @@ void QuickAccessUtility::FrontendCallback(enum obs_frontend_event event,
 			QCoreApplication::instance()->thread(),
 			[]() { qau->UnloadDocks(); });
 		qau->loaded = false;
-	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
-	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED) {
-		blog(LOG_INFO,
-		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED called.");
-	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
-		blog(LOG_INFO,
-		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING called.");
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-		blog(LOG_INFO,
-		     "======== OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED called.");
 		if (qau->_sceneCollectionChanging) {
 			qau->_sceneCollectionChanging = false;
 			//qau->_SetupDocks();
@@ -423,20 +392,7 @@ void QuickAccessUtility::SceneChanged()
 	std::string uuid = obs_source_get_uuid(newScene);
 	QuickAccessSource *qaNewScene = _allSources[uuid].get();
 	if (qaNewScene) {
-		if (_currentScene) {
-			_itemAddSig.Disconnect();
-			_itemRemoveSig.Disconnect();
-			_currentScene = nullptr;
-		}
-		signal_handler_t *signalHandler =
-			obs_source_get_signal_handler(newScene);
 		_currentScene = qaNewScene;
-		_itemAddSig.Connect(signalHandler, "item_add",
-				    QuickAccessUtility::SourceAddedToScene,
-				    this);
-		_itemRemoveSig.Connect(signalHandler, "item_remove",
-				    QuickAccessUtility::SourceRemovedFromScene,
-				    this);
 		_SetCurrentSceneSources();
 		for (auto &dock : _docks) {
 			dock->SetCurrentScene(qaNewScene);
@@ -445,60 +401,12 @@ void QuickAccessUtility::SceneChanged()
 	obs_source_release(newScene);
 }
 
-void QuickAccessUtility::SourceAddedToScene(void *data, calldata_t *params)
-{
-	UNUSED_PARAMETER(data);
-	//obs_scene_t *parentScene =
-	//	static_cast<obs_scene_t *>(calldata_ptr(params, "scene"));
-	//obs_source_t *parentSource = obs_scene_get_source(parentScene);
-	//obs_sceneitem_t *sceneItem =
-	//	static_cast<obs_sceneitem_t *>(calldata_ptr(params, "item"));
-	//obs_source_t *source = obs_sceneitem_get_source(sceneItem);
-	//std::string sourceId = obs_source_get_uuid(source);
-	//std::string sceneId = obs_source_get_uuid(parentSource);
-
-	//QuickAccessSource *parent = qau->_allSources[sceneId].get();
-	//QuickAccessSource *child = qau->_allSources[sourceId].get();
-
-	//child->addParent(parent);
-	//parent->addChild(child);
-
-	//qau->_SetCurrentSceneSources();
-	//for (auto &dock : qau->_docks) {
-	//	dock->SetCurrentScene(qau->_currentScene);
-	//}
-}
-
 void QuickAccessUtility::UpdateSceneSources()
 {
 	_SetCurrentSceneSources();
 	for (auto &dock : _docks) {
 		dock->SetCurrentScene(_currentScene);
 	}
-}
-
-void QuickAccessUtility::SourceRemovedFromScene(void *data, calldata_t *params)
-{
-	UNUSED_PARAMETER(data);
-	//obs_scene_t *parentScene =
-	//	static_cast<obs_scene_t *>(calldata_ptr(params, "scene"));
-	//obs_source_t *parentSource = obs_scene_get_source(parentScene);
-	//obs_sceneitem_t *sceneItem =
-	//	static_cast<obs_sceneitem_t *>(calldata_ptr(params, "item"));
-	//obs_source_t *source = obs_sceneitem_get_source(sceneItem);
-	//std::string sourceId = obs_source_get_uuid(source);
-	//std::string sceneId = obs_source_get_uuid(parentSource);
-
-	//QuickAccessSource *parent = qau->_allSources[sceneId].get();
-	//QuickAccessSource *child = qau->_allSources[sourceId].get();
-
-	//child->removeParent(parent);
-	//parent->removeChild(child);
-
-	//qau->_SetCurrentSceneSources();
-	//for (auto &dock : qau->_docks) {
-	//	dock->SetCurrentScene(qau->_currentScene);
-	//}
 }
 
 void QuickAccessUtility::CheckModule(void *data, obs_module_t *module)
@@ -1153,7 +1061,6 @@ extern "C" EXPORT void CheckModules()
 
 void frontendSaveLoad(obs_data_t *save_data, bool saving, void *data)
 {
-	blog(LOG_INFO, "======== obs_frontend_save_load_callback called.");
 	auto quickAccessUtility = static_cast<QuickAccessUtility *>(data);
 	if (saving) {
 		quickAccessUtility->Save(save_data);

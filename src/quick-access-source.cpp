@@ -394,7 +394,6 @@ QuickAccessSource::~QuickAccessSource()
 	}
 
 	obs_weak_source_release(_source);
-	blog(LOG_INFO, "===== Released %s", _tmpName.c_str());
 }
 
 void QuickAccessSource::itemAdded(void* data, calldata_t* params)
