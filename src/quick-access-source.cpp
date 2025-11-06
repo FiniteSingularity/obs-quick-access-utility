@@ -368,11 +368,21 @@ QuickAccessSource::QuickAccessSource(obs_source_t *source)
 	_sourceClass = obs_source_is_group(source)   ? SourceClass::Group
 		       : obs_source_is_scene(source) ? SourceClass::Scene
 						     : SourceClass::Source;
+
+	if (_sourceClass != SourceClass::Source) {
+		_setCallbacks();
+	}
+
 	BuildSearchTerms();
 }
 
 QuickAccessSource::~QuickAccessSource()
 {
+	if (_sourceClass != SourceClass::Source) {
+		_itemAddSig.Disconnect();
+		_itemRemoveSig.Disconnect();
+	}
+
 	for (auto &dock : _docks) {
 		dock->RemoveSource(this, false);
 	}
@@ -385,6 +395,47 @@ QuickAccessSource::~QuickAccessSource()
 
 	obs_weak_source_release(_source);
 	blog(LOG_INFO, "===== Released %s", _tmpName.c_str());
+}
+
+void QuickAccessSource::itemAdded(void* data, calldata_t* params)
+{
+	QuickAccessSource &instance = *static_cast<QuickAccessSource *>(data);
+
+	obs_sceneitem_t *sceneItem =
+		static_cast<obs_sceneitem_t *>(calldata_ptr(params, "item"));
+	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
+	std::string sourceId = obs_source_get_uuid(source);
+	auto* child = qau->GetSource(sourceId);
+	instance.addChild(child);
+	child->addParent(&instance);
+	qau->UpdateSceneSources();
+}
+
+void QuickAccessSource::itemRemoved(void* data, calldata_t* params)
+{
+	QuickAccessSource &instance = *static_cast<QuickAccessSource *>(data);
+
+	obs_sceneitem_t *sceneItem =
+		static_cast<obs_sceneitem_t *>(calldata_ptr(params, "item"));
+	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
+	std::string sourceId = obs_source_get_uuid(source);
+	auto *child = qau->GetSource(sourceId);
+	child->removeParent(&instance);
+	instance.removeChild(child);
+	qau->UpdateSceneSources();
+}
+
+void QuickAccessSource::_setCallbacks()
+{
+	obs_source *source = obs_weak_source_get_source(_source);
+
+	signal_handler_t *signalHandler =
+		obs_source_get_signal_handler(source);
+	if (_sourceClass != SourceClass::Scene) {
+		_itemAddSig.Connect(signalHandler, "item_add", QuickAccessSource::itemAdded, this);
+		_itemRemoveSig.Connect(signalHandler, "item_remove", QuickAccessSource::itemRemoved, this);
+	}
+	obs_source_release(source);
 }
 
 obs_source_t *QuickAccessSource::get()

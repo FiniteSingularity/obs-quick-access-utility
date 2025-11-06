@@ -1,4 +1,5 @@
 #pragma once
+#include <obs.hpp>
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <string>
@@ -132,6 +133,8 @@ public:
 	bool hasProperties() const;
 	bool hasInteract() const;
 	bool hasRefresh() const;
+	static void itemAdded(void *data, calldata_t *params);
+	static void itemRemoved(void *data, calldata_t *params);
 	std::string activeState() const;
 
 	bool save(obs_data_t *itemObj);
@@ -143,6 +146,7 @@ public:
 	QIcon icon() const;
 
 private:
+	void _setCallbacks();
 	obs_weak_source_t *_source;
 	SourceClass _sourceClass;
 	SearchTermMap _searchTerms;
@@ -154,6 +158,9 @@ private:
 	// TODO: Get rid of _tmpName
 	std::string _tmpName;
 	static bool registered;
+
+	OBSSignal _itemAddSig;
+	OBSSignal _itemRemoveSig;
 };
 
 Q_DECLARE_METATYPE(QuickAccessSource *)

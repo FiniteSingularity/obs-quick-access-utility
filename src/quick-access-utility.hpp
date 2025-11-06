@@ -1,6 +1,7 @@
 #pragma once
 #include <obs-module.h>
 #include <obs-frontend-api.h>
+#include "obs.hpp"
 
 #include <QDockWidget>
 #include <QWidget>
@@ -49,6 +50,7 @@ public:
 	void SceneChanged();
 	void UnloadDocks();
 	void InitializeSearch();
+	void UpdateSceneSources();
 	inline std::vector<QuickAccessDock *> GetDocks() { return _docks; }
 	inline bool SourceCloneInstalled() { return _sourceCloneInstalled; }
 	inline bool dskInstalled() { return _dskInstalled; }
@@ -109,6 +111,15 @@ private:
 	obs_hotkey_id _quick_search_hotkey_id;
 
 	std::mutex _m;
+	OBSSignal _sourceCreateSig;
+	OBSSignal _sourceDestroySig;
+	OBSSignal _sourceRenameSig;
+	OBSSignal _sourceUpdateSig;
+	OBSSignal _sourceFilterAddSig;
+	OBSSignal _sourceFilterRemoveSig;
+
+	OBSSignal _itemAddSig;
+	OBSSignal _itemRemoveSig;
 };
 
 class CreateDockDialog : public QDialog {
