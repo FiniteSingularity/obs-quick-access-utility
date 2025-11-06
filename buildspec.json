@@ -1,12 +1,12 @@
 {
     "dependencies": {
         "obs-studio": {
-            "version": "30.0.0",
-            "baseUrl": "https://github.com/obsproject/obs-studio/archive/refs/tags",
+            "version": "30.0.0-fixmac",
+            "baseUrl": "https://github.com/exeldro/obs-studio/archive/refs/tags",
             "label": "OBS sources",
             "hashes": {
-                "macos": "c23dd463862b1a8f40365d84fd52105d7eafc3614fb3d470b695ba28a6e4da06",
-                "windows-x64": "2bfdadf5f46ba56276d588b77653a10b9e2b2e3c05d8029b27a25b8ada9ab474"
+                "macos": "2234a31a1e966efdec22715e11bfbe6556962f358432169ca93af8479a8c7ee8",
+                "windows-x64": "cb0c6c6538680f24f3969ebfa7f2fb4e98965e049e845921ba1b378cf5c002de"
             }
         },
         "prebuilt": {
