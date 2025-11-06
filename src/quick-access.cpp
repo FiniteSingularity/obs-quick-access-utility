@@ -112,8 +112,13 @@ QList<QString> QuickAccessSourceList::_getProjectorMenuMonitorsFormatted()
 
 void QuickAccessSourceList::_displayContextMenu()
 {
-	QMenu context(this);
-
+	// Get the QStackedWidget that contains this list.  For some reason
+	// in OBS 31.1, the QScrollArea within the QStackedWidget breaks
+	// the UI chain, and so the background color isn't inherited, and
+	// the context menu is transparent.
+	// TODO: Fix this grossness.
+	const auto parent = parentWidget()->parentWidget()->parentWidget()->parentWidget();
+	QMenu context(parent);
 	auto idx = currentIndex();
 
 	auto sourceModel = dynamic_cast<QuickAccessSourceModel *>(model());
@@ -252,7 +257,7 @@ void QuickAccessSourceList::_displayContextMenu()
 	context.addAction(windowedProjector);
 
 	auto monitors = _getProjectorMenuMonitorsFormatted();
-	auto fsProjector = new QMenu("Full Screen Projector", this);
+	auto fsProjector = new QMenu("Full Screen Projector", &context);
 	for (int i = 0; i < monitors.size(); i++) {
 		auto monitor = new QAction(monitors[i], this);
 		fsProjector->addAction(monitor);
@@ -443,6 +448,7 @@ QuickAccess::QuickAccess(QWidget *parent, QuickAccessDock *dock, QString name)
 				}
 			});
 		layout->addWidget(_searchText);
+		layout->setSpacing(12);
 	}
 
 	layout->addWidget(_contents);
@@ -558,10 +564,12 @@ void QuickAccess::_createListContainer()
 	if (widget) {
 		delete widget;
 	}
-	_listsContainer->setStyleSheet("QWidget {background: transparent;}");
+	//_listsContainer->setStyleSheet("QWidget {background: transparent;}");
+	_listsContainer->viewport()->setAutoFillBackground(false);
 	_listsContainer->setContentsMargins(0, 0, 0, 0);
 	_listsContainer->setWidgetResizable(true);
-	_listsContainer->setAttribute(Qt::WA_TranslucentBackground);
+	_listsContainer->setStyleSheet("QScrollArea { border: none; background-color: palette(base); }");
+	//_listsContainer->setAttribute(Qt::WA_TranslucentBackground);
 	auto listsWidget = new QWidget(this);
 	listsWidget->setContentsMargins(0, 0, 0, 0);
 	auto lcLayout = new QVBoxLayout();
@@ -582,7 +590,7 @@ void QuickAccess::_createListContainer()
 		qa.listView->setModel(qa.model);
 		qa.listView->setSizePolicy(QSizePolicy::Preferred,
 					   QSizePolicy::Fixed);
-		qa.listView->setStyleSheet("border: none");
+		qa.listView->setStyleSheet("QListView {border: none; border-radius: palette(border_radius);}");
 		qa.listView->setContentsMargins(0, 0, 0, 10);
 		qa.listView->setMinimumHeight(0);
 		QuickAccessSourceDelegate *itemDelegate =
@@ -667,11 +675,13 @@ void QuickAccess::_createListContainer()
 		++i;
 	}
 
-	QWidget *lSpacer = new QWidget(this);
-	lSpacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-	lcLayout->addWidget(lSpacer);
+	//QWidget *lSpacer = new QWidget(this);
+	//lSpacer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+	//lcLayout->addWidget(lSpacer);
+	lcLayout->addStretch();
 	listsWidget->setLayout(lcLayout);
 	_listsContainer->setWidget(listsWidget);
+	listsWidget->setAutoFillBackground(false);
 }
 
 void QuickAccess::paintEvent(QPaintEvent *)

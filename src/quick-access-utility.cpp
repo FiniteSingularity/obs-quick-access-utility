@@ -991,7 +991,7 @@ QuickAccessSearchModal::QuickAccessSearchModal(QWidget *parent)
 	setLayout(_layout);
 	setWindowTitle("Quick Search");
 	setWindowFlags(Qt::Popup);
-	setStyleSheet("border-radius: 20px;");
+	//setStyleSheet("border-radius: 20px;");
 	//setModal(true);
 	qau->searchDialog = this;
 	qau->quickSearchOpen = true;
