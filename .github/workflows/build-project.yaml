@@ -3,15 +3,12 @@ on:
   workflow_call:
     outputs:
       pluginName:
-        description: 'Project name detected by parsing build spec file'
+        description: Project name detected by parsing build spec file
         value: ${{ jobs.check-event.outputs.pluginName }}
-env:
-  PLUGIN_NAME: obs-quick-access-utility
-
 jobs:
   check-event:
     name: Check GitHub Event Data 🔎
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -23,7 +20,7 @@ jobs:
       commitHash: ${{ steps.setup.outputs.commitHash }}
       pluginName: ${{ steps.setup.outputs.pluginName }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Check Event Data ☑️
@@ -46,7 +43,7 @@ jobs:
             push)
               config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo')
               if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-(rc|beta).+)? ]]; then
-                config_data[1]='notarize:false'
+                config_data[1]='notarize:true'
                 config_data[3]='config:Release'
               fi
               ;;
@@ -76,13 +73,13 @@ jobs:
 
   macos-build:
     name: Build for macOS 🍏
-    runs-on: macos-14
+    runs-on: macos-15
     needs: check-event
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
@@ -93,14 +90,18 @@ jobs:
           : Set Up Environment 🔧
           if (( ${+RUNNER_DEBUG} )) setopt XTRACE
 
-          print '::group::Enable Xcode 15.2'
-          sudo xcode-select --switch /Applications/Xcode_15.2.app/Contents/Developer
+          print '::group::Enable Xcode 16.1'
+          sudo xcode-select --switch /Applications/Xcode_16.1.0.app/Contents/Developer
           print '::endgroup::'
 
           print '::group::Clean Homebrew Environment'
-          local -a to_remove=()
+          local -a unwanted_formulas=()
+          local -a remove_formulas=()
+          for formula (${unwanted_formulas}) {
+            if [[ -d ${HOMEBREW_PREFIX}/Cellar/${formula} ]] remove_formulas+=(${formula})
+          }
 
-          if (( #to_remove )) brew uninstall --ignore-dependencies ${to_remove}
+          if (( #remove_formulas )) brew uninstall --ignore-dependencies ${remove_formulas}
           print '::endgroup::'
 
           local product_name
@@ -111,7 +112,7 @@ jobs:
           print "pluginName=${product_name}" >> $GITHUB_OUTPUT
           print "pluginVersion=${product_version}" >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v5
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
@@ -156,27 +157,36 @@ jobs:
           codesignPass: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
 
       - name: Upload Artifacts 📡
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-universal-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-universal.*
 
       - name: Upload Debug Symbol Artifacts 🪲
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ needs.check-event.outputs.config == 'Release' }}
         with:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-universal-${{ needs.check-event.outputs.commitHash }}-dSYMs
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-universal-dSYMs.*
 
+      - uses: actions/cache/save@v5
+        if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ needs.check-event.outputs.config }}
+
   ubuntu-build:
     name: Build for Ubuntu 🐧
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        os: [ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     needs: check-event
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
@@ -193,16 +203,13 @@ jobs:
           echo "pluginName=${product_name}" >> $GITHUB_OUTPUT
           echo "pluginVersion=${product_version}" >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v5
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
           restore-keys: |
-            ${{ runner.os }}-ccache-x86_64-
-
-      - name: Set up Homebrew 🍺
-        uses: Homebrew/actions/setup-homebrew@master
+            ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-
 
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
@@ -213,28 +220,34 @@ jobs:
       - name: Package Plugin 📀
         uses: ./.github/actions/package-plugin
         with:
-          package: ${{ fromJSON(needs.check-event.outputs.package) }}
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
+          package: true
 
       - name: Upload Source Tarball 🗜️
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-sources-${{ needs.check-event.outputs.commitHash }}
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-${{ matrix.os }}-sources-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-source.*
 
       - name: Upload Artifacts 📡
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-ubuntu-22.04-x86_64-${{ needs.check-event.outputs.commitHash }}
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-${{ matrix.os }}-x86_64-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-x86_64*.*
 
       - name: Upload debug symbol artifacts 🪲
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ fromJSON(needs.check-event.outputs.package) }}
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-ubuntu-22.04-x86_64-${{ needs.check-event.outputs.commitHash }}-dbgsym
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-${{ matrix.os }}-x86_64-${{ needs.check-event.outputs.commitHash }}-dbgsym
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-x86_64*-dbgsym.ddeb
+
+      - uses: actions/cache/save@v5
+        if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
 
   windows-build:
     name: Build for Windows 🪟
@@ -244,25 +257,10 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
-
-      - name: Set Up Environment 🔧
-        id: setup
-        run: |
-          # Set Up Environment 🔧
-          if ( $Env:RUNNER_DEBUG -ne $null ) {
-            Set-PSDebug -Trace 1
-          }
-
-          $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
-          $ProductName = $BuildSpec.name
-          $ProductVersion = $BuildSpec.version
-
-          "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
-          "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
 
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
@@ -270,26 +268,25 @@ jobs:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
 
+      - name: Upload Build Output for Packaging 📤
+        uses: actions/upload-artifact@v6
+        with:
+          name: tmp-windows-x64-build
+          path: ${{ github.workspace }}/release/${{ needs.check-event.outputs.config }}
+          retention-days: 1
+          if-no-files-found: error
+
   windows-package:
-    name: Package Windows (no signing) 📀
-    if: github.event_name == 'pull_request'
+    name: Package Windows (unsigned) 📀
+    if: ${{ !(github.event_name == 'push' && github.ref_type == 'tag') }}
     runs-on: windows-2022
-    needs: windows-build
+    needs: [check-event, windows-build]
+    defaults:
+      run:
+        shell: pwsh
     steps:
-      - name: Setup Directories
-        run: |
-          mkdir ./package
-          mkdir ./archive
-      - name: Retrieve Build
-        uses: actions/download-artifact@v4
-        with:
-          name: "tmp-package"
-          path: ./package
-      - name: Retrieve installer files
-        uses: actions/download-artifact@v4
-        with:
-          name: "tmp-installer"
-          path: .
+      - uses: actions/checkout@v5
+
       - name: Set Up Environment 🔧
         id: setup
         run: |
@@ -301,51 +298,61 @@ jobs:
           $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
           $ProductName = $BuildSpec.name
           $ProductVersion = $BuildSpec.version
-          $ShortSha = "${{ github.sha }}".SubString(0, 9)
 
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
-          "shortSha=${ShortSha}" >> $env:GITHUB_OUTPUT
-      - name: Compress Plug-In
-        if: success()
-        run: |
-          Compress-Archive -Path package/* -Destination "archive/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64.zip"
-      - name: "Package Installer (Compile)"
-        run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /O".\archive" /F"${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer" /Qp ".\installer.iss"
-      - name: Publish Archive
-        if: success()
-        uses: actions/upload-artifact@v4
+
+      - name: Download Build Output 📥
+        uses: actions/download-artifact@v7
         with:
-          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ steps.setup.outputs.shortSha }}"
-          path: archive/*
-      - name: Remove temp artifacts
-        uses: geekyeggo/delete-artifact@v5
+          name: tmp-windows-x64-build
+          path: ${{ github.workspace }}/release/${{ needs.check-event.outputs.config }}
+
+      - name: Package Plugin 📀
+        uses: ./.github/actions/package-plugin
         with:
-          name: |
-            tmp-package
-            tmp-installer
+          target: x64
+          config: ${{ needs.check-event.outputs.config }}
+          package: true
+
+      - name: Upload Main Artifact 📡
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
+
+      - name: Upload Legacy Artifact 📡
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-legacy-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-legacy-x64*.*
+
+      - name: Upload Portable Legacy Artifact 📡
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-portable-legacy-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-portable-legacy-x64*.*
+
+      - name: Remove Temporary Artifacts 🧹
+        uses: geekyeggo/delete-artifact@v6
+        with:
+          name: tmp-windows-x64-build
 
   windows-package-signed:
     name: Package Windows (signed) 📀
-    if: github.event_name == 'push'
-    runs-on: [self-hosted]
-    needs: windows-build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    environment: release-staging
+    runs-on: [self-hosted, Windows, X64]
+    needs: [check-event, windows-build]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      SIGNING_KEY_PIN: ${{ secrets.SIGNING_KEY_PIN }}
+      SIGNING_ORG: ${{ secrets.SIGNING_ORG }}
     steps:
-      - name: Setup Directories
-        run: |
-          mkdir ./package
-          mkdir ./archive
-      - name: Retrieve Build
-        uses: actions/download-artifact@v4
-        with:
-          name: "tmp-package"
-          path: ./package
-      - name: Retrieve installer files
-        uses: actions/download-artifact@v4
-        with:
-          name: "tmp-installer"
-          path: .
+      - uses: actions/checkout@v5
+
       - name: Set Up Environment 🔧
         id: setup
         run: |
@@ -357,46 +364,47 @@ jobs:
           $BuildSpec = Get-Content -Path buildspec.json -Raw | ConvertFrom-Json
           $ProductName = $BuildSpec.name
           $ProductVersion = $BuildSpec.version
-          $ShortSha = "${{ github.sha }}".SubString(0, 9)
 
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
-          "shortSha=${ShortSha}" >> $env:GITHUB_OUTPUT
-      - name: Setup Secrets
-        run: |
-          Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
-          Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
-      - name: Get ScSignTool
-        run: |
-          curl "-kL" "https://www.mgtek.com/files/smartcardtools.zip" "-f" "--retry" "5" "-o" "smartcardtools.zip"
-          7z x smartcardtools.zip -o"./smartcardtools"
-      - name: Code Sign Library
-        if: success()
-        run: |
-          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\obs-plugins\64bit\${{ env.PLUGIN_NAME }}.dll
-      - name: Compress Plug-In
-        if: success()
-        run: |
-          Compress-Archive -Path package/* -Destination "archive/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64.zip"
-      - name: "Package Installer (Compile)"
-        run: |
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /O".\archive" /F"${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer" /Qp ".\installer.iss"
-      - name: Code Sign Installer
-        if: success()
-        run: |
-          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\archive\${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer.exe
-      - name: Publish Archive
-        if: success()
-        uses: actions/upload-artifact@v4
+
+      - name: Download Build Output 📥
+        uses: actions/download-artifact@v7
         with:
-          name: "${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ steps.setup.outputs.shortSha }}"
-          path: archive/*
-      - name: Remove temp artifacts
-        uses: geekyeggo/delete-artifact@v5
+          name: tmp-windows-x64-build
+          path: ${{ github.workspace }}/release/${{ needs.check-event.outputs.config }}
+
+      - name: Sign and Package Plugin 📀
+        uses: ./.github/actions/package-plugin
         with:
-          name: |
-            tmp-package
-            tmp-installer
-      - name: Cleanup
+          target: x64
+          config: ${{ needs.check-event.outputs.config }}
+          package: true
+          signWindows: true
+
+      - name: Upload Main Artifact 📡
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
+
+      - name: Upload Legacy Artifact 📡
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-legacy-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-legacy-x64*.*
+
+      - name: Upload Portable Legacy Artifact 📡
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-portable-legacy-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-portable-legacy-x64*.*
+
+      - name: Remove Temporary Artifacts 🧹
+        uses: geekyeggo/delete-artifact@v6
+        with:
+          name: tmp-windows-x64-build
+
+      - name: Clean Up Runner Workspace 🧹
         if: ${{ always() }}
-        run: rm -Recurse -Force ./*
+        run: Remove-Item -Path "${{ github.workspace }}/*" -Recurse -Force -ErrorAction SilentlyContinue

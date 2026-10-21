@@ -7,14 +7,17 @@
 !/cmake
 !/data
 !/src
+!.all-contributorsrc
 !.clang-format
-!.cmake-format.json
+!.config
+!.gersemirc
 !.gitignore
 !buildspec.json
 !CMakeLists.txt
 !CMakePresets.json
 !LICENSE
 !README.md
+!manifest.json
 
 # Exclude lock files
 *.lock.json
