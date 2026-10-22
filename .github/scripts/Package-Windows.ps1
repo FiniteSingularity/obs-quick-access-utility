@@ -4,8 +4,10 @@ param(
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
     [string] $Configuration = 'RelWithDebInfo',
-    [switch] $BuildInstaller,
-    [switch] $SkipDeps
+    [switch] $Installer,
+    [ValidateSet('All', 'Modern', 'Legacy')]
+    [string] $InstallerVariant = 'All',
+    [switch] $SignCode
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,17 +21,14 @@ if ( ! ( [System.Environment]::Is64BitOperatingSystem ) ) {
     throw "Packaging script requires a 64-bit system to build and run."
 }
 
-
-if ( $PSVersionTable.PSVersion -lt '7.0.0' ) {
+if ( $PSVersionTable.PSVersion -lt '7.2.0' ) {
     Write-Warning 'The packaging script requires PowerShell Core 7. Install or upgrade your PowerShell version: https://aka.ms/pscore6'
     exit 2
 }
 
 function Package {
     trap {
-        Pop-Location -Stack BuildTemp -ErrorAction 'SilentlyContinue'
         Write-Error $_
-        Log-Group
         exit 2
     }
 
@@ -48,49 +47,74 @@ function Package {
     $ProductName = $BuildSpec.name
     $ProductVersion = $BuildSpec.version
 
-    $OutputName = "${ProductName}-${ProductVersion}-windows-${Target}"
+    $StagingRoot = "${ProjectRoot}/release/${Configuration}"
 
-    if ( ! $SkipDeps ) {
-        Install-BuildDependencies -WingetFile "${ScriptHome}/.Wingetfile"
+    $Archives = @(
+        @{
+            Label = 'OBS 33+'
+            StagingDir = "${StagingRoot}/${ProductName}"
+            OutputName = "${ProductName}-${ProductVersion}-windows-${Target}"
+        }
+        @{
+            Label = 'legacy'
+            StagingDir = "${StagingRoot}/${ProductName}_legacy"
+            OutputName = "${ProductName}-${ProductVersion}-windows-legacy-${Target}"
+        }
+        @{
+            Label = 'portable legacy'
+            StagingDir = "${StagingRoot}/${ProductName}_portable_legacy"
+            OutputName = "${ProductName}-${ProductVersion}-windows-portable-legacy-${Target}"
+        }
+    )
+
+    foreach ( $Archive in $Archives ) {
+        if ( ! ( Test-Path -Path $Archive.StagingDir ) ) {
+            throw "Staging directory '$($Archive.StagingDir)' not found. Run Build-Windows.ps1 -Configuration ${Configuration} first."
+        }
     }
 
     $RemoveArgs = @{
         ErrorAction = 'SilentlyContinue'
         Path = @(
             "${ProjectRoot}/release/${ProductName}-*-windows-*.zip"
-            "${ProjectRoot}/release/${ProductName}-*-windows-*.exe"
+            "${ProjectRoot}/release/${ProductName}-*-windows-*.msi"
         )
     }
 
     Remove-Item @RemoveArgs
 
-    Log-Group "Archiving ${ProductName}..."
-    $CompressArgs = @{
-        Path = (Get-ChildItem -Path "${ProjectRoot}/release/${Configuration}" -Exclude "${OutputName}*.*")
-        CompressionLevel = 'Optimal'
-        DestinationPath = "${ProjectRoot}/release/${OutputName}.zip"
-        Verbose = ($Env:CI -ne $null)
+    if ( $SignCode ) {
+        Log-Group "Signing ${ProductName} binaries..."
+        $Binaries = Get-ChildItem -Path $StagingRoot -Recurse -Include '*.dll' | Select-Object -ExpandProperty FullName
+        Sign-WindowsFile -FilePath $Binaries
+        Log-Group
     }
-    Compress-Archive -Force @CompressArgs
-    Log-Group
 
-    if ( ( $BuildInstaller ) ) {
-        Log-Group "Packaging ${ProductName}..."
+    foreach ( $Archive in $Archives ) {
+        Log-Group "Archiving ${ProductName} $($Archive.Label)..."
+        $CompressArgs = @{
+            Path = (Get-ChildItem -Path $Archive.StagingDir -Exclude "$($Archive.OutputName)*.*")
+            CompressionLevel = 'Optimal'
+            DestinationPath = "${ProjectRoot}/release/$($Archive.OutputName).zip"
+            Verbose = ($Env:CI -ne $null)
+        }
+        Compress-Archive -Force @CompressArgs
+        Log-Group
+    }
 
-        $IsccFile = "${ProjectRoot}/build_${Target}/installer-Windows.generated.iss"
-        if ( ! ( Test-Path -Path $IsccFile ) ) {
-            throw 'InnoSetup install script not found. Run the build script or the CMake build and install procedures first.'
+    if ( $Installer ) {
+        $InstallerArgs = @{
+            Target = $Target
+            Configuration = $Configuration
+            Variant = $InstallerVariant
+            SignCode = $SignCode
         }
 
-        Log-Information 'Creating InnoSetup installer...'
-        Push-Location -Stack BuildTemp
-        Ensure-Location -Path "${ProjectRoot}/release"
-        Copy-Item -Path ${Configuration} -Destination Package -Recurse
-        Invoke-External iscc ${IsccFile} /O"${ProjectRoot}/release" /F"${OutputName}-Installer"
-        Remove-Item -Path Package -Recurse
-        Pop-Location -Stack BuildTemp
+        & "${ScriptHome}/Build-WindowsInstaller.ps1" @InstallerArgs
 
-        Log-Group
+        if ( $LASTEXITCODE -ne 0 ) {
+            throw "Build-WindowsInstaller.ps1 exited with code ${LASTEXITCODE}."
+        }
     }
 }
 

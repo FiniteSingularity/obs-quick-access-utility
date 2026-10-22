@@ -1,0 +1,16 @@
+{
+    "display_name": "Quick Access Utility",
+    "id": "a5a76cb4-71b8-4a9c-a63b-2d21ce29813c",
+    "version": "1.1.0",
+    "authors": ["FiniteSingularity"],
+    "name": "obs-quick-access-utility",
+    "description": "A quick access utility plugin for OBS.",
+    "long_description": "A plugin that provides quick access utility features for OBS.",
+    "urls": {
+        "repository": "https://github.com/FiniteSingularity/obs-quick-access-utility",
+        "website": "https://f15y.com",
+        "support": "https://github.com/FiniteSingularity/obs-quick-access-utility/issues"
+    },
+    "has_banner": false,
+    "has_icon": false
+}
