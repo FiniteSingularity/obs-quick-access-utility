@@ -1,7 +1,7 @@
 {
     "display_name": "Quick Access Utility",
     "id": "a5a76cb4-71b8-4a9c-a63b-2d21ce29813c",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "authors": ["FiniteSingularity"],
     "name": "obs-quick-access-utility",
     "description": "A quick access utility plugin for OBS.",
